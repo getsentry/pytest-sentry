@@ -61,7 +61,7 @@ object from the `Sentry SDK for Python
     # Other invocations:
 
     @pytest.mark.sentry_hub(Hub(Client("CUSTOM DSN", default_integrations=False)))
-    @pytest.mark.sentry_hub(Hub("CUSTOM DSN", default_integrations=False))
+    @pytest.mark.sentry_hub(Client("CUSTOM DSN", default_integrations=False))
     @pytest.mark.sentry_hub(lambda: Hub("CUSTOM DSN", default_integrations=False))
 
     # pytest-sentry always passes `default_integrations=False`
