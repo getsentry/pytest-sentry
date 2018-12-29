@@ -2,6 +2,9 @@
 pytest-sentry
 =============
 
+.. image:: https://travis-ci.com/untitaker/pytest-sentry.svg?branch=master
+    :target: https://travis-ci.com/untitaker/pytest-sentry
+
 ``pytest-sentry`` is a `pytest <https://pytest.org>`_ plugin that sends error
 reports for flaky but ultimately not completely broken tests to `Sentry
 <https://sentry.io/>`_.
