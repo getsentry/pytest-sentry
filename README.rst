@@ -49,7 +49,8 @@ object from the `Sentry SDK for Python
     import random
     import pytest
 
-    from sentry_sdk import Hub, Client
+    from sentry_sdk import Hub
+    from pytest_sentry import Client
 
     @pytest.mark.sentry_hub(None)
     def test_no_sentry():
@@ -65,9 +66,10 @@ object from the `Sentry SDK for Python
 
     @pytest.mark.sentry_hub(Hub(Client("CUSTOM DSN", default_integrations=False)))
     @pytest.mark.sentry_hub(Client("CUSTOM DSN", default_integrations=False))
-    @pytest.mark.sentry_hub(lambda: Hub("CUSTOM DSN", default_integrations=False))
+    @pytest.mark.sentry_hub(lambda: Client("CUSTOM DSN"))
 
-    # pytest-sentry always passes `default_integrations=False`
+
+The ``Client`` class exposed by ``pytest-sentry`` only has different default integrations.
 
 License
 =======
