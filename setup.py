@@ -8,7 +8,7 @@ setup(
     license="MIT",
     author_email="markus@unterwaditzer.net",
     url="https://github.com/untitaker/pytest-sentry",
-    py_modules="pytest-sentry",
+    py_modules=["pytest_sentry"],
     entry_points={"pytest11": ["sentry = pytest_sentry"]},
     install_requires=["pytest", "sentry-sdk"],
 )
