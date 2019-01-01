@@ -46,6 +46,11 @@ del _get_default_hub
 
 
 def _resolve_hub_marker_value(marker_value):
+    if marker_value is None:
+        marker_value = DEFAULT_HUB
+    else:
+        marker_value = marker_value.args[0]
+
     if callable(marker_value):
         marker_value = marker_value()
 
@@ -70,9 +75,7 @@ def _resolve_hub_marker_value(marker_value):
 
 
 def _report_flaky_test(item, call, exc_infos):
-    hub = _resolve_hub_marker_value(
-        item.get_closest_marker("sentry_hub", default=DEFAULT_HUB).args[0]
-    )
+    hub = _resolve_hub_marker_value(item.get_closest_marker("sentry_hub"))
     with hub:
         with push_scope() as scope:
             scope.add_event_processor(_process_event)
