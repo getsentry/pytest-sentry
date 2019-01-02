@@ -9,6 +9,30 @@ from sentry_sdk import Hub, push_scope, capture_exception
 class Client(sentry_sdk.Client):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("default_integrations", False)
+
+        import logging
+
+        from sentry_sdk.integrations.logging import LoggingIntegration
+        from sentry_sdk.integrations.stdlib import StdlibIntegration
+        from sentry_sdk.integrations.dedupe import DedupeIntegration
+        from sentry_sdk.integrations.modules import ModulesIntegration
+        from sentry_sdk.integrations.argv import ArgvIntegration
+
+        integrations = kwargs.setdefault("integrations", [])
+        names = set(integration.identifier for integration in integrations)
+
+        default_integrations = [
+            LoggingIntegration(level=logging.INFO, event_level=None),
+            StdlibIntegration(),
+            DedupeIntegration(),
+            ModulesIntegration(),
+            ArgvIntegration(),
+        ]
+
+        integrations.extend(
+            i for i in default_integrations if i.identifier not in names
+        )
+
         sentry_sdk.Client.__init__(self, *args, **kwargs)
 
 
