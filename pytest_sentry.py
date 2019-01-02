@@ -60,7 +60,7 @@ def _get_default_hub():
     client = None
     dsn = os.environ.get("PYTEST_SENTRY_DSN", None)
     if dsn:
-        client = Client(dsn, debug=True)
+        client = Client(dsn)
 
     return Hub(client)
 
