@@ -8,7 +8,7 @@ events = []
 
 
 @pytest.mark.flaky(reruns=2)
-@pytest.mark.sentry_hub(Client(transport=events.append))
+@pytest.mark.sentry_client(Client(transport=events.append))
 def test_basic(request):
     global i
     i += 1

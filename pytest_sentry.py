@@ -39,9 +39,7 @@ class Client(sentry_sdk.Client):
 def pytest_load_initial_conftests(early_config, parser, args):
     early_config.addinivalue_line(
         "markers",
-        "sentry_hub(hub=None): Custom hub to use for reporting when this test "
-        "is found to be flaky. Can be a Hub, a Client, a DSN in form of a "
-        "string, or a callable that eturns any of that",
+        "sentry_client(client=None): Use this client instance for reporting tests. You can also pass a DSN string directly, or a `Hub` if you need it.",
     )
 
 
@@ -92,14 +90,14 @@ def _resolve_hub_marker_value(marker_value):
         return marker_value
 
     raise RuntimeError(
-        "The `sentry_hub` value must be a client, hub or string, not {}".format(
+        "The `sentry_client` value must be a client, hub or string, not {}".format(
             repr(type(marker_value))
         )
     )
 
 
 def _report_flaky_test(item, call, exc_infos):
-    hub = _resolve_hub_marker_value(item.get_closest_marker("sentry_hub"))
+    hub = _resolve_hub_marker_value(item.get_closest_marker("sentry_client"))
     with hub:
         with push_scope() as scope:
             scope.add_event_processor(_process_event)

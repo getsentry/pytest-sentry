@@ -52,24 +52,26 @@ object from the `Sentry SDK for Python
     from sentry_sdk import Hub
     from pytest_sentry import Client
 
-    @pytest.mark.sentry_hub(None)
+    @pytest.mark.sentry_client(None)
     def test_no_sentry():
         # Even though flaky, this test never gets reported to sentry
         assert random.random() > 0.5
 
-    @pytest.mark.sentry_hub("MY NEW DSN")
+    @pytest.mark.sentry_client("MY NEW DSN")
     def test_custom_dsn():
         # Use a different DSN to report errors for this one
         assert random.random() > 0.5
 
     # Other invocations:
 
-    @pytest.mark.sentry_hub(Hub(Client("CUSTOM DSN", default_integrations=False)))
-    @pytest.mark.sentry_hub(Client("CUSTOM DSN", default_integrations=False))
-    @pytest.mark.sentry_hub(lambda: Client("CUSTOM DSN"))
+    @pytest.mark.sentry_client(Client("CUSTOM DSN"))
+    @pytest.mark.sentry_client(lambda: Client("CUSTOM DSN"))
+    @pytest.mark.sentry_client(Hub(Client("CUSTOM DSN")))
 
 
-The ``Client`` class exposed by ``pytest-sentry`` only has different default integrations.
+The ``Client`` class exposed by ``pytest-sentry`` only has different default
+integrations. It disables some of the error-capturing integrations to avoid
+sending random expected errors into your project.
 
 License
 =======
