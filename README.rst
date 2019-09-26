@@ -73,6 +73,16 @@ The ``Client`` class exposed by ``pytest-sentry`` only has different default
 integrations. It disables some of the error-capturing integrations to avoid
 sending random expected errors into your project.
 
+Always reporting test failures
+==============================
+
+You can always report all test failures to Sentry by setting the environment
+variable ``PYTEST_SENTRY_ALWAYS_REPORT=1``.
+
+This can be enabled for builds on the ``master`` or release branch, to catch
+certain kinds of tests that are flaky across builds, but consistently fail or
+pass within one testrun.
+
 License
 =======
 

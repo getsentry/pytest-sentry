@@ -2,8 +2,28 @@ import os
 import pytest
 
 import sentry_sdk
+from sentry_sdk.integrations import Integration
 
 from sentry_sdk import Hub, push_scope, capture_exception
+
+
+class PytestIntegration(Integration):
+    # Right now this integration type is only a carrier for options, and to
+    # disable the pytest plugin. `setup_once` is unused.
+
+    identifier = "pytest"
+
+    def __init__(self, always_report=None):
+        if always_report is None:
+            always_report = os.environ.get(
+                "PYTEST_SENTRY_ALWAYS_REPORT", ""
+            ).lower() in ("1", "true", "yes")
+
+        self.always_report = always_report
+
+    @staticmethod
+    def setup_once():
+        pass
 
 
 class Client(sentry_sdk.Client):
@@ -27,6 +47,7 @@ class Client(sentry_sdk.Client):
             DedupeIntegration(),
             ModulesIntegration(),
             ArgvIntegration(),
+            PytestIntegration(),
         ]
 
         integrations.extend(
@@ -46,11 +67,18 @@ def pytest_load_initial_conftests(early_config, parser, args):
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     if call.when == "call":
-        old_exc_chain = getattr(item, "pytest_sentry_exc_chain", [])
-        if call.excinfo is not None:
-            item.pytest_sentry_exc_chain = old_exc_chain + [call.excinfo]
-        elif old_exc_chain:
-            _report_flaky_test(item, call, old_exc_chain)
+        hub = _resolve_hub_marker_value(item.get_closest_marker("sentry_client"))
+        integration = hub.get_integration(PytestIntegration)
+        if integration is not None:
+            cur_exc_chain = getattr(item, "pytest_sentry_exc_chain", [])
+
+            if call.excinfo is not None:
+                item.pytest_sentry_exc_chain = cur_exc_chain = cur_exc_chain + [
+                    call.excinfo
+                ]
+
+            if (cur_exc_chain and call.excinfo is None) or integration.always_report:
+                _report_flaky_test(hub, item, call, cur_exc_chain)
     yield
 
 
@@ -96,8 +124,7 @@ def _resolve_hub_marker_value(marker_value):
     )
 
 
-def _report_flaky_test(item, call, exc_infos):
-    hub = _resolve_hub_marker_value(item.get_closest_marker("sentry_client"))
+def _report_flaky_test(hub, item, call, exc_infos):
     with hub:
         with push_scope() as scope:
             scope.add_event_processor(_process_event)
