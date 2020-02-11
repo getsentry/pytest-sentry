@@ -54,6 +54,8 @@ class Client(sentry_sdk.Client):
             i for i in default_integrations if i.identifier not in names
         )
 
+        kwargs.setdefault("environment", "test")
+
         sentry_sdk.Client.__init__(self, *args, **kwargs)
 
 
