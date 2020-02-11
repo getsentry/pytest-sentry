@@ -4,7 +4,7 @@ setup(
     name="pytest-sentry",
     description="A pytest plugin to report flaky tests to Sentry.io",
     long_description=open("README.rst").read(),
-    version="0.1.0",
+    version="0.1.1",
     license="MIT",
     author_email="markus@unterwaditzer.net",
     url="https://github.com/untitaker/pytest-sentry",
