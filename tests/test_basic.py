@@ -19,6 +19,6 @@ def test_basic(request):
 @pytest.fixture(scope="session", autouse=True)
 def assert_report():
     yield
-    event, = events
-    exception, = event["exception"]["values"]
+    (event,) = events
+    (exception,) = event["exception"]["values"]
     assert exception["type"] == "ZeroDivisionError"
