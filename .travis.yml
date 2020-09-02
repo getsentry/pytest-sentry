@@ -19,7 +19,7 @@ matrix:
       sudo: true
       install: pip install black flake8
       script:
-        - black --check
+        - black --check *.py tests/
         - flake8
 
     - python: "3.7"
