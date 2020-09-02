@@ -68,6 +68,8 @@ def pytest_load_initial_conftests(early_config, parser, args):
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
+    yield
+
     if call.when == "call":
         hub = _resolve_hub_marker_value(item.get_closest_marker("sentry_client"))
         integration = hub.get_integration(PytestIntegration)
@@ -81,7 +83,6 @@ def pytest_runtest_makereport(item, call):
 
             if (cur_exc_chain and call.excinfo is None) or integration.always_report:
                 _report_flaky_test(hub, item, call, cur_exc_chain)
-    yield
 
 
 def _get_default_hub():
