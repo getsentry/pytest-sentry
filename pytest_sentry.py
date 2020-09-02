@@ -69,7 +69,7 @@ def pytest_load_initial_conftests(early_config, parser, args):
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     yield
-    
+
     if call.when == "call":
         hub = _resolve_hub_marker_value(item.get_closest_marker("sentry_client"))
         integration = hub.get_integration(PytestIntegration)
