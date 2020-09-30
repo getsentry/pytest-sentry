@@ -32,12 +32,13 @@ class Client(sentry_sdk.Client):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("dsn", os.environ.get("PYTEST_SENTRY_DSN", None))
         kwargs.setdefault("traces_sample_rate", 1.0)
-        kwargs.setdefault("_experiments", {}).setdefault("auto_enabling_integrations", True)
+        kwargs.setdefault("_experiments", {}).setdefault(
+            "auto_enabling_integrations", True
+        )
         kwargs.setdefault("environment", "test")
         kwargs.setdefault("integrations", []).append(PytestIntegration())
 
         sentry_sdk.Client.__init__(self, *args, **kwargs)
-
 
 
 def hookwrapper(itemgetter, **kwargs):
@@ -88,9 +89,7 @@ def pytest_runtest_protocol(item):
         yield
 
 
-@hookwrapper(
-    itemgetter=lambda item: item
-)
+@hookwrapper(itemgetter=lambda item: item)
 def pytest_runtest_call(item):
     op = "pytest.runtest.call"
 
@@ -104,21 +103,15 @@ def pytest_runtest_call(item):
         if params_start != -1:
             name = name[:params_start]
 
-    with sentry_sdk.start_transaction(
-        op=op,
-        name=u"{} {}".format(op, name)
-    ):
+    with sentry_sdk.start_transaction(op=op, name=u"{} {}".format(op, name)):
         yield
 
 
-@hookwrapper(
-    itemgetter=lambda fixturedef, request: request._pyfuncitem
-)
+@hookwrapper(itemgetter=lambda fixturedef, request: request._pyfuncitem)
 def pytest_fixture_setup(fixturedef, request):
     op = "pytest.fixture.setup"
     with sentry_sdk.start_transaction(
-        op=op,
-        name=u"{} {}".format(op, fixturedef.argname)
+        op=op, name=u"{} {}".format(op, fixturedef.argname)
     ):
         yield
 
@@ -142,7 +135,6 @@ def pytest_runtest_makereport(item, call):
         if (cur_exc_chain and call.excinfo is None) or integration.always_report:
             for exc_info in cur_exc_chain:
                 capture_exception((exc_info.type, exc_info.value, exc_info.tb))
-
 
 
 DEFAULT_HUB = Hub(Client())
@@ -188,7 +180,6 @@ def sentry_test_hub(request):
 
     item = request.node
     return _resolve_hub_marker_value(item.get_closest_marker("sentry_client"))
-
 
 
 def _process_event(event, hint):
