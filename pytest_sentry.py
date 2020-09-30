@@ -1,6 +1,8 @@
 import os
 import pytest
+import functools
 
+import wrapt
 import sentry_sdk
 from sentry_sdk.integrations import Integration
 
@@ -28,35 +30,48 @@ class PytestIntegration(Integration):
 
 class Client(sentry_sdk.Client):
     def __init__(self, *args, **kwargs):
-        kwargs.setdefault("default_integrations", False)
-
-        import logging
-
-        from sentry_sdk.integrations.logging import LoggingIntegration
-        from sentry_sdk.integrations.stdlib import StdlibIntegration
-        from sentry_sdk.integrations.dedupe import DedupeIntegration
-        from sentry_sdk.integrations.modules import ModulesIntegration
-        from sentry_sdk.integrations.argv import ArgvIntegration
-
-        integrations = kwargs.setdefault("integrations", [])
-        names = set(integration.identifier for integration in integrations)
-
-        default_integrations = [
-            LoggingIntegration(level=logging.INFO, event_level=None),
-            StdlibIntegration(),
-            DedupeIntegration(),
-            ModulesIntegration(),
-            ArgvIntegration(),
-            PytestIntegration(),
-        ]
-
-        integrations.extend(
-            i for i in default_integrations if i.identifier not in names
-        )
-
+        kwargs.setdefault("dsn", os.environ.get("PYTEST_SENTRY_DSN", None))
+        kwargs.setdefault("traces_sample_rate", 1.0)
+        kwargs.setdefault("_experiments", {}).setdefault("auto_enabling_integrations", True)
         kwargs.setdefault("environment", "test")
+        kwargs.setdefault("integrations", []).append(PytestIntegration())
 
         sentry_sdk.Client.__init__(self, *args, **kwargs)
+
+
+
+def hookwrapper(itemgetter, **kwargs):
+    """
+    A version of pytest.hookimpl that sets the current hub to the correct one
+    and skips the hook if the integration is disabled.
+
+    Assumes the function is a hookwrapper, ie yields once
+    """
+
+    @wrapt.decorator
+    def _with_hub(wrapped, instance, args, kwargs):
+        item = itemgetter(*args, **kwargs)
+        hub = _resolve_hub_marker_value(item.get_closest_marker("sentry_client"))
+
+        if hub.get_integration(PytestIntegration) is None:
+            yield
+        else:
+            with hub:
+                gen = wrapped(*args, **kwargs)
+
+            while True:
+                try:
+                    with hub:
+                        y = yield next(gen)
+                        gen.send(y)
+
+                except StopIteration:
+                    break
+
+    def inner(f):
+        return pytest.hookimpl(hookwrapper=True, **kwargs)(_with_hub(f))
+
+    return inner
 
 
 def pytest_load_initial_conftests(early_config, parser, args):
@@ -66,36 +81,71 @@ def pytest_load_initial_conftests(early_config, parser, args):
     )
 
 
-@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+@hookwrapper(itemgetter=lambda item: item)
+def pytest_runtest_protocol(item):
+    with sentry_sdk.push_scope() as scope:
+        scope.add_event_processor(_process_event)
+        yield
+
+
+@hookwrapper(
+    itemgetter=lambda item: item
+)
+def pytest_runtest_call(item):
+    op = "pytest.runtest.call"
+
+    name = item.nodeid
+
+    # Assumption: Parameters are full of unreadable garbage and the test
+    # timings are going to be comparable. The product can then identify slowest
+    # runs anyway.
+    if name.endswith("]"):
+        params_start = name.rfind("[")
+        if params_start != -1:
+            name = name[:params_start]
+
+    with sentry_sdk.start_transaction(
+        op=op,
+        name=u"{} {}".format(op, name)
+    ):
+        yield
+
+
+@hookwrapper(
+    itemgetter=lambda fixturedef, request: request._pyfuncitem
+)
+def pytest_fixture_setup(fixturedef, request):
+    op = "pytest.fixture.setup"
+    with sentry_sdk.start_transaction(
+        op=op,
+        name=u"{} {}".format(op, fixturedef.argname)
+    ):
+        yield
+
+
+@hookwrapper(tryfirst=True, itemgetter=lambda item, call: item)
 def pytest_runtest_makereport(item, call):
-    yield
+    sentry_sdk.set_tag("pytest.result", "pending")
+    report = yield
+    sentry_sdk.set_tag("pytest.result", report.get_result().outcome)
 
     if call.when == "call":
-        hub = _resolve_hub_marker_value(item.get_closest_marker("sentry_client"))
-        integration = hub.get_integration(PytestIntegration)
-        if integration is not None:
-            cur_exc_chain = getattr(item, "pytest_sentry_exc_chain", [])
+        cur_exc_chain = getattr(item, "pytest_sentry_exc_chain", [])
 
-            if call.excinfo is not None:
-                item.pytest_sentry_exc_chain = cur_exc_chain = cur_exc_chain + [
-                    call.excinfo
-                ]
+        if call.excinfo is not None:
+            item.pytest_sentry_exc_chain = cur_exc_chain = cur_exc_chain + [
+                call.excinfo
+            ]
 
-            if (cur_exc_chain and call.excinfo is None) or integration.always_report:
-                _report_flaky_test(hub, item, call, cur_exc_chain)
+        integration = Hub.current.get_integration(PytestIntegration)
 
-
-def _get_default_hub():
-    client = None
-    dsn = os.environ.get("PYTEST_SENTRY_DSN", None)
-    if dsn:
-        client = Client(dsn)
-
-    return Hub(client)
+        if (cur_exc_chain and call.excinfo is None) or integration.always_report:
+            for exc_info in cur_exc_chain:
+                capture_exception((exc_info.type, exc_info.value, exc_info.tb))
 
 
-DEFAULT_HUB = _get_default_hub()
-del _get_default_hub
+
+DEFAULT_HUB = Hub(Client())
 
 
 def _resolve_hub_marker_value(marker_value):
@@ -114,6 +164,9 @@ def _resolve_hub_marker_value(marker_value):
     if isinstance(marker_value, str):
         return Hub(Client(marker_value))
 
+    if isinstance(marker_value, dict):
+        return Hub(Client(**marker_value))
+
     if isinstance(marker_value, Client):
         return Hub(marker_value)
 
@@ -127,19 +180,15 @@ def _resolve_hub_marker_value(marker_value):
     )
 
 
-def _report_flaky_test(hub, item, call, exc_infos):
-    with hub:
-        with push_scope() as scope:
-            scope.add_event_processor(_process_event)
+@pytest.fixture
+def sentry_test_hub(request):
+    """
+    Gives back the current hub.
+    """
 
-            scope.transaction = _transaction_from_item(item)
+    item = request.node
+    return _resolve_hub_marker_value(item.get_closest_marker("sentry_client"))
 
-            for exc_info in exc_infos:
-                capture_exception((exc_info.type, exc_info.value, exc_info.tb))
-
-
-def _transaction_from_item(item):
-    return item.nodeid
 
 
 def _process_event(event, hint):

@@ -5,12 +5,11 @@ pytest-sentry
 .. image:: https://travis-ci.com/untitaker/pytest-sentry.svg?branch=master
     :target: https://travis-ci.com/untitaker/pytest-sentry
 
-``pytest-sentry`` is a `pytest <https://pytest.org>`_ plugin that sends error
-reports for flaky but ultimately not completely broken tests to `Sentry
-<https://sentry.io/>`_.
+``pytest-sentry`` is a `pytest <https://pytest.org>`_ plugin that uses `Sentry
+<https://sentry.io/>`_ to store and aggregate information about your testruns.
 
-What and Why
-============
+Tracking flaky tests as errors
+==============================
 
 Let's say you have a testsuite with some flaky tests that randomly break your
 CI build due to network issues, race conditions or other stuff that you don't
@@ -22,13 +21,10 @@ One concern against plugins like this is that they just hide the bugs in your
 testsuite or even other code. After all your CI build is green and your code
 probably works most of the time.
 
-pytest-sentry tries to make that choice a bit easier by tracking flaky test
+``pytest-sentry`` tries to make that choice a bit easier by tracking flaky test
 failures in a place separate from your build status. Sentry is already a
 good choice for keeping tabs on all kinds of errors, important or not, in
 production, so let's try to use it in testsuites too.
-
-How
-===
 
 The prerequisite is that you already make use of ``pytest`` and
 ``pytest-rerunfailures`` in CI. Now install ``pytest-sentry`` and set the
@@ -37,6 +33,30 @@ The prerequisite is that you already make use of ``pytest`` and
 Now every test failure that is "fixed" by retrying the test is reported to
 Sentry, but still does not break CI. Tests that consistently fail will not be
 reported.
+
+Tracking the performance of your testsuite
+==========================================
+
+By default ``pytest-sentry`` will send `Performance
+<https://sentry.io/for/performance/>`_ data to Sentry:
+
+* Fixture setup is reported as "transaction" to Sentry, such that you can
+  answer questions like "what is my slowest test fixture" and "what is my most
+  used test fixture".
+
+* Calls to the test function itself are reported as separate transaction such
+  that you can find large, slow tests as well.
+
+To measure performance data, install ``pytest-sentry`` and set
+``PYTEST_SENTRY_DSN``, like with errors.
+
+Transactions can have noticeable runtime overhead over just reporting errors.
+To disable, use a marker::
+
+    import pytest
+    import pytest_sentry
+
+    pytestmarker = pytest.mark.sentry_client({"traces_sample_rate": 0.0})
 
 Advanced Options
 ================
@@ -67,11 +87,34 @@ object from the `Sentry SDK for Python
     @pytest.mark.sentry_client(Client("CUSTOM DSN"))
     @pytest.mark.sentry_client(lambda: Client("CUSTOM DSN"))
     @pytest.mark.sentry_client(Hub(Client("CUSTOM DSN")))
+    @pytest.mark.sentry_client({"dsn": ..., "debug": True})
 
 
 The ``Client`` class exposed by ``pytest-sentry`` only has different default
 integrations. It disables some of the error-capturing integrations to avoid
 sending random expected errors into your project.
+
+Accessing the used Sentry client
+================================
+
+You will notice that the global functions such as
+``sentry_sdk.capture_message`` will not actually send events into the same DSN
+you configured this plugin with. That's because ``pytest-sentry`` goes to
+extreme lenghts to keep its own SDK setup separate from the SDK setup of the
+tested code.
+
+``pytest-sentry`` exposes the ``sentry_test_hub`` fixture whose return value is
+the ``Hub`` being used to send events to Sentry. Use ``with sentry_test_hub:``
+to temporarily switch context. You can use this to set custom tags like so::
+
+    def test_foo(sentry_test_hub):
+        with sentry_test_hub:
+            sentry_sdk.set_tag("pull_request", os.environ['EXAMPLE_CI_PULL_REQUEST'])
+
+
+Why all the hassle with the context manager? Just imagine if your tested
+application would start to log some (expected) errors on its own. You would
+immediately exceed your quota!
 
 Always reporting test failures
 ==============================
