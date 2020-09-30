@@ -1,12 +1,13 @@
+from __future__ import absolute_import
+
 import os
 import pytest
-import functools
 
 import wrapt
 import sentry_sdk
 from sentry_sdk.integrations import Integration
 
-from sentry_sdk import Hub, push_scope, capture_exception
+from sentry_sdk import Hub, capture_exception
 
 
 class PytestIntegration(Integration):
