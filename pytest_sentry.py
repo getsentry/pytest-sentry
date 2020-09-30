@@ -64,7 +64,11 @@ def hookwrapper(itemgetter, **kwargs):
             while True:
                 try:
                     with hub:
-                        y = yield next(gen)
+                        chunk = next(gen)
+
+                    y = yield chunk
+
+                    with hub:
                         gen.send(y)
 
                 except StopIteration:
