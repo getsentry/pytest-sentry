@@ -4,6 +4,7 @@ setup(
     name="pytest-sentry",
     description="A pytest plugin to send testrun information to Sentry.io",
     long_description=open("README.rst").read(),
+    author="Markus Unterwaditzer",
     version="0.1.5",
     license="MIT",
     author_email="markus@unterwaditzer.net",
