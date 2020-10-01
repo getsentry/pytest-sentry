@@ -129,4 +129,4 @@ pass within one testrun.
 License
 =======
 
-Licensed under MIT, see ``LICENSE``.
+Licensed under 2-clause BSD, see ``LICENSE``.
