@@ -8,7 +8,7 @@ import sentry_sdk
 from sentry_sdk.integrations import Integration
 
 from sentry_sdk import Hub, capture_exception
-from sentry_sdk.scope import add_global_event_processor 
+from sentry_sdk.scope import add_global_event_processor
 
 _ENVVARS_AS_TAGS = frozenset(
     [
