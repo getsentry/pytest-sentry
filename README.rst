@@ -4,6 +4,12 @@ pytest-sentry
 
 .. image:: https://travis-ci.com/untitaker/pytest-sentry.svg?branch=master
     :target: https://travis-ci.com/untitaker/pytest-sentry
+    
+.. image:: https://img.shields.io/pypi/v/pytest-sentry
+    :target: https://pypi.org/project/pytest-sentry/
+
+.. image:: https://img.shields.io/pypi/l/pytest-sentry
+    :target: https://pypi.org/project/pytest-sentry/
 
 ``pytest-sentry`` is a `pytest <https://pytest.org>`_ plugin that uses `Sentry
 <https://sentry.io/>`_ to store and aggregate information about your testruns.
