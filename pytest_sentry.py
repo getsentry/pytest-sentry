@@ -27,6 +27,15 @@ _ENVVARS_AS_TAGS = frozenset(
         "GITHUB_BASE_REF",  # Only set for pull request events. The name of the base branch.
         "GITHUB_SERVER_URL",  # Returns the URL of the GitHub server. For example: https://github.com.
         "GITHUB_API_URL",  # Returns the API URL. For example: https://api.github.com.
+        # Gitlab CI variables, as defined here https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
+        "CI_COMMIT_REF_NAME",  # Branch or tag name
+        "CI_JOB_ID",  # Unique job ID
+        "CI_JOB_URL",  # Job details URL
+        "CI_PIPELINE_ID",  # Unique pipeline ID
+        "CI_PROJECT_NAME",
+        "CI_PROJECT_PATH",
+        "CI_SERVER_URL",
+        "GITLAB_USER_NAME",  # The name of the user who started the job.
     ]
 )
 
