@@ -14,6 +14,8 @@ pytest-sentry
 ``pytest-sentry`` is a `pytest <https://pytest.org>`_ plugin that uses `Sentry
 <https://sentry.io/>`_ to store and aggregate information about your testruns.
 
+**This is not an official Sentry product.**
+
 Tracking flaky tests as errors
 ==============================
 
