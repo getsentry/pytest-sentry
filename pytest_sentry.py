@@ -65,7 +65,7 @@ class PytestIntegration(Integration):
                 value = os.environ.get(key)
                 if not value:
                     continue
-                event.tags["pytest_environ.{}".format(key)] = value
+                event.setdefault("tags", {})["pytest_environ.{}".format(key)] = value
 
             return event
 
