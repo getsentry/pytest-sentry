@@ -6,7 +6,7 @@ setup(
     long_description=open("README.rst").read(),
     author="Markus Unterwaditzer",
     version="0.1.7",
-    license="MIT",
+    license="BSD",
     author_email="markus@unterwaditzer.net",
     url="https://github.com/untitaker/pytest-sentry",
     py_modules=["pytest_sentry"],
