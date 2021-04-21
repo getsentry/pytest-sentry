@@ -55,6 +55,19 @@ By default ``pytest-sentry`` will send `Performance
 * Calls to the test function itself are reported as separate transaction such
   that you can find large, slow tests as well.
 
+* Fixture setup related to a particular test item will be in the same trace,
+  i.e. will have same trace ID. There is no common parent transaction though.
+  It is purposefully dropped to spare quota as it does not contain interesting
+  information::
+
+      pytest.runtest.protocol  [one time, not sent]
+        pytest.fixture.setup [multiple times, sent]
+        pytest.runtest.call [one time, sent]
+
+  The trace is per-test-item. For correlating transactions across an entire
+  test run, use the automatically attached CI tags or attach some tag on your
+  own.
+
 To measure performance data, install ``pytest-sentry`` and set
 ``PYTEST_SENTRY_DSN``, like with errors.
 

@@ -44,3 +44,12 @@ def assert_report():
         test_transaction["transaction"]
         == "pytest.runtest.call tests/test_tracing.py::test_basic"
     )
+
+    assert (
+        fixture_transaction["contexts"]["trace"]["trace_id"]
+        == test_transaction["contexts"]["trace"]["trace_id"]
+    )
+    assert (
+        self_transaction["contexts"]["trace"]["trace_id"]
+        == fixture_transaction["contexts"]["trace"]["trace_id"]
+    )
