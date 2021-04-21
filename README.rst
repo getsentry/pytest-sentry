@@ -2,9 +2,6 @@
 pytest-sentry
 =============
 
-.. image:: https://travis-ci.com/untitaker/pytest-sentry.svg?branch=master
-    :target: https://travis-ci.com/untitaker/pytest-sentry
-    
 .. image:: https://img.shields.io/pypi/v/pytest-sentry
     :target: https://pypi.org/project/pytest-sentry/
 
