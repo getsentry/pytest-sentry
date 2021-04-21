@@ -141,13 +141,8 @@ def pytest_runtest_call(item):
 
     name = item.nodeid
 
-    # Assumption: Parameters are full of unreadable garbage and the test
-    # timings are going to be comparable. The product can then identify slowest
-    # runs anyway.
-    if name.endswith("]"):
-        params_start = name.rfind("[")
-        if params_start != -1:
-            name = name[:params_start]
+    # We use the full name including parameters because then we can identify
+    # how often a single test has run as part of the same GITHUB_RUN_ID.
 
     with sentry_sdk.start_transaction(op=op, name=u"{} {}".format(op, name)):
         yield
