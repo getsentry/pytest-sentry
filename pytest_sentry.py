@@ -8,6 +8,7 @@ import sentry_sdk
 from sentry_sdk.integrations import Integration
 
 from sentry_sdk import Hub, capture_exception
+from sentry_sdk.tracing import Transaction
 from sentry_sdk.scope import add_global_event_processor
 
 _ENVVARS_AS_TAGS = frozenset(
@@ -66,6 +67,14 @@ class PytestIntegration(Integration):
                 if not value:
                     continue
                 event.setdefault("tags", {})["pytest_environ.{}".format(key)] = value
+
+            if "exception" in event:
+                for exception in event["exception"]["values"]:
+                    if "stacktrace" in exception:
+                        _process_stacktrace(exception["stacktrace"])
+
+            if "stacktrace" in event:
+                _process_stacktrace(event["stacktrace"])
 
             return event
 
@@ -128,11 +137,29 @@ def pytest_load_initial_conftests(early_config, parser, args):
     )
 
 
+def _start_transaction(**kwargs):
+    transaction = Transaction.continue_from_headers(
+        dict(Hub.current.iter_trace_propagation_headers()), **kwargs
+    )
+    transaction.same_process_as_parent = True
+    return sentry_sdk.start_transaction(transaction)
+
+
 @hookwrapper(itemgetter=lambda item: item)
 def pytest_runtest_protocol(item):
-    with sentry_sdk.push_scope() as scope:
-        scope.add_event_processor(_process_event)
+    op = "pytest.runtest.protocol"
+
+    name = item.nodeid
+
+    # We use the full name including parameters because then we can identify
+    # how often a single test has run as part of the same GITHUB_RUN_ID.
+
+    with _start_transaction(op=op, name=u"{} {}".format(op, name)) as tx:
         yield
+
+        # Purposefully drop transaction to spare quota. We only created it to
+        # have a trace_id to correlate by.
+        tx.sampled = False
 
 
 @hookwrapper(itemgetter=lambda item: item)
@@ -144,16 +171,14 @@ def pytest_runtest_call(item):
     # We use the full name including parameters because then we can identify
     # how often a single test has run as part of the same GITHUB_RUN_ID.
 
-    with sentry_sdk.start_transaction(op=op, name=u"{} {}".format(op, name)):
+    with _start_transaction(op=op, name=u"{} {}".format(op, name)):
         yield
 
 
 @hookwrapper(itemgetter=lambda fixturedef, request: request._pyfuncitem)
 def pytest_fixture_setup(fixturedef, request):
     op = "pytest.fixture.setup"
-    with sentry_sdk.start_transaction(
-        op=op, name=u"{} {}".format(op, fixturedef.argname)
-    ):
+    with _start_transaction(op=op, name=u"{} {}".format(op, fixturedef.argname)):
         yield
 
 
@@ -180,8 +205,20 @@ def pytest_runtest_makereport(item, call):
 
 DEFAULT_HUB = Hub(Client())
 
+_hub_cache = {}
+
 
 def _resolve_hub_marker_value(marker_value):
+    if id(marker_value) not in _hub_cache:
+        _hub_cache[id(marker_value)] = rv = _resolve_hub_marker_value_uncached(
+            marker_value
+        )
+        return rv
+
+    return _hub_cache[id(marker_value)]
+
+
+def _resolve_hub_marker_value_uncached(marker_value):
     if marker_value is None:
         marker_value = DEFAULT_HUB
     else:
@@ -221,18 +258,6 @@ def sentry_test_hub(request):
 
     item = request.node
     return _resolve_hub_marker_value(item.get_closest_marker("sentry_client"))
-
-
-def _process_event(event, hint):
-    if "exception" in event:
-        for exception in event["exception"]["values"]:
-            if "stacktrace" in exception:
-                _process_stacktrace(exception["stacktrace"])
-
-    if "stacktrace" in event:
-        _process_stacktrace(event["stacktrace"])
-
-    return event
 
 
 def _process_stacktrace(stacktrace):
