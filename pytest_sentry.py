@@ -178,7 +178,8 @@ def pytest_runtest_call(item):
 @hookwrapper(itemgetter=lambda fixturedef, request: request._pyfuncitem)
 def pytest_fixture_setup(fixturedef, request):
     op = "pytest.fixture.setup"
-    with _start_transaction(op=op, name=u"{} {}".format(op, fixturedef.argname)):
+    with _start_transaction(op=op, name=u"{} {}".format(op, fixturedef.argname)) as transaction:
+        transaction.set_tag("pytest.fixture.scope", fixturedef.scope)
         yield
 
 
