@@ -187,9 +187,10 @@ def pytest_fixture_setup(fixturedef, request):
 def pytest_runtest_makereport(item, call):
     sentry_sdk.set_tag("pytest.result", "pending")
     report = yield
-    sentry_sdk.set_tag("pytest.result", report.get_result().outcome)
+    outcome = report.get_result().outcome
+    sentry_sdk.set_tag("pytest.result", outcome)
 
-    if call.when == "call":
+    if call.when == "call" and outcome != "skipped":
         cur_exc_chain = getattr(item, "pytest_sentry_exc_chain", [])
 
         if call.excinfo is not None:
