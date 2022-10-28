@@ -140,7 +140,7 @@ Always reporting test failures
 You can always report all test failures to Sentry by setting the environment
 variable ``PYTEST_SENTRY_ALWAYS_REPORT=1``.
 
-This can be enabled for builds on the ``master`` or release branch, to catch
+This can be enabled for builds on the ``main`` or release branch, to catch
 certain kinds of tests that are flaky across builds, but consistently fail or
 pass within one testrun.
 
