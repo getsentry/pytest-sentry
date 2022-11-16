@@ -86,7 +86,7 @@ class Client(sentry_sdk.Client):
         kwargs.setdefault("_experiments", {}).setdefault(
             "auto_enabling_integrations", True
         )
-        kwargs.setdefault("environment", "test")
+        kwargs.setdefault("environment", os.environ.get("SENTRY_ENVIRONMENT", "test"))
         kwargs.setdefault("integrations", []).append(PytestIntegration())
 
         sentry_sdk.Client.__init__(self, *args, **kwargs)
