@@ -1,0 +1,4 @@
+minVersion: 0.28.1
+targets:
+- name: pypi
+- name: github
