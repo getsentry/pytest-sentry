@@ -66,7 +66,11 @@ By default ``pytest-sentry`` will send `Performance
   own.
 
 To measure performance data, install ``pytest-sentry`` and set
-``PYTEST_SENTRY_DSN``, like with errors.
+``PYTEST_SENTRY_DSN``, like with errors. By default, the extension will send all
+performance data to Sentry. If you want to limit the amount of data sent, you
+can set the ``PYTEST_SENTRY_TRACES_SAMPLE_RATE`` environment variable to a float
+between ``0`` and ``1``. This will cause only a random sample of transactions to
+be sent to Sentry.
 
 Transactions can have noticeable runtime overhead over just reporting errors.
 To disable, use a marker::
