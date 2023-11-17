@@ -83,6 +83,7 @@ class Client(sentry_sdk.Client):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("dsn", os.environ.get("PYTEST_SENTRY_DSN", None))
         kwargs.setdefault("traces_sample_rate", float(os.environ.get("PYTEST_SENTRY_TRACES_SAMPLE_RATE", 1.0)))
+        kwargs.setdefault("profiles_sample_rate", os.environ.get("PYTEST_SENTRY_PROFILES_SAMPLE_RATE", 0.0))
         kwargs.setdefault("_experiments", {}).setdefault(
             "auto_enabling_integrations", True
         )
