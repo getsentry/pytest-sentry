@@ -12,6 +12,8 @@ class MyTransport(sentry_sdk.Transport):
 
     def capture_envelope(self, envelope):
         envelopes.append(envelope)
+        if envelope.get_event() is not None:
+            events.append(envelope.get_event())
 
 
 @pytest.fixture(autouse=True)

@@ -27,7 +27,7 @@ def test_basic(foo_fixture):
     assert foo_fixture == 42
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="module", autouse=True)
 def assert_report():
     yield
 
