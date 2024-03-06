@@ -7,7 +7,7 @@ import wrapt
 import sentry_sdk
 from sentry_sdk.integrations import Integration
 
-from sentry_sdk import Hub, capture_exception
+from sentry_sdk import Hub, Scope, capture_exception
 from sentry_sdk.tracing import Transaction
 from sentry_sdk.scope import add_global_event_processor
 
@@ -82,7 +82,10 @@ class PytestIntegration(Integration):
 class Client(sentry_sdk.Client):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("dsn", os.environ.get("PYTEST_SENTRY_DSN", None))
-        kwargs.setdefault("traces_sample_rate", float(os.environ.get("PYTEST_SENTRY_TRACES_SAMPLE_RATE", 1.0)))
+        kwargs.setdefault(
+            "traces_sample_rate",
+            float(os.environ.get("PYTEST_SENTRY_TRACES_SAMPLE_RATE", 1.0)),
+        )
         kwargs.setdefault("_experiments", {}).setdefault(
             "auto_enabling_integrations", True
         )
@@ -94,38 +97,38 @@ class Client(sentry_sdk.Client):
 
 def hookwrapper(itemgetter, **kwargs):
     """
-    A version of pytest.hookimpl that sets the current hub to the correct one
+    A version of pytest.hookimpl that sets the current scope to the correct one
     and skips the hook if the integration is disabled.
 
     Assumes the function is a hookwrapper, ie yields once
     """
 
     @wrapt.decorator
-    def _with_hub(wrapped, instance, args, kwargs):
+    def _with_scope(wrapped, instance, args, kwargs):
         item = itemgetter(*args, **kwargs)
-        hub = _resolve_hub_marker_value(item.get_closest_marker("sentry_client"))
+        scope = _resolve_scope_marker_value(item.get_closest_marker("sentry_client"))
 
-        if hub.get_integration(PytestIntegration) is None:
+        if scope.get_client().get_integration(PytestIntegration) is None:
             yield
         else:
-            with hub:
+            with sentry_sdk.push_scope():  # TODO: What do we do with scope here?
                 gen = wrapped(*args, **kwargs)
 
             while True:
                 try:
-                    with hub:
+                    with sentry_sdk.push_scope():
                         chunk = next(gen)
 
                     y = yield chunk
 
-                    with hub:
+                    with sentry_sdk.push_scope():
                         gen.send(y)
 
                 except StopIteration:
                     break
 
     def inner(f):
-        return pytest.hookimpl(hookwrapper=True, **kwargs)(_with_hub(f))
+        return pytest.hookimpl(hookwrapper=True, **kwargs)(_with_scope(f))
 
     return inner
 
@@ -133,7 +136,7 @@ def hookwrapper(itemgetter, **kwargs):
 def pytest_load_initial_conftests(early_config, parser, args):
     early_config.addinivalue_line(
         "markers",
-        "sentry_client(client=None): Use this client instance for reporting tests. You can also pass a DSN string directly, or a `Hub` if you need it.",
+        "sentry_client(client=None): Use this client instance for reporting tests. You can also pass a DSN string directly, or a `Scope` if you need it.",
     )
 
 
@@ -154,7 +157,7 @@ def pytest_runtest_protocol(item):
     # We use the full name including parameters because then we can identify
     # how often a single test has run as part of the same GITHUB_RUN_ID.
 
-    with _start_transaction(op=op, name=u"{} {}".format(op, name)) as tx:
+    with _start_transaction(op=op, name="{} {}".format(op, name)) as tx:
         yield
 
         # Purposefully drop transaction to spare quota. We only created it to
@@ -171,14 +174,16 @@ def pytest_runtest_call(item):
     # We use the full name including parameters because then we can identify
     # how often a single test has run as part of the same GITHUB_RUN_ID.
 
-    with _start_transaction(op=op, name=u"{} {}".format(op, name)):
+    with _start_transaction(op=op, name="{} {}".format(op, name)):
         yield
 
 
 @hookwrapper(itemgetter=lambda fixturedef, request: request._pyfuncitem)
 def pytest_fixture_setup(fixturedef, request):
     op = "pytest.fixture.setup"
-    with _start_transaction(op=op, name=u"{} {}".format(op, fixturedef.argname)) as transaction:
+    with _start_transaction(
+        op=op, name="{} {}".format(op, fixturedef.argname)
+    ) as transaction:
         transaction.set_tag("pytest.fixture.scope", fixturedef.scope)
         yield
 
@@ -205,24 +210,24 @@ def pytest_runtest_makereport(item, call):
                 capture_exception((exc_info.type, exc_info.value, exc_info.tb))
 
 
-DEFAULT_HUB = Hub(Client())
+DEFAULT_SCOPE = Scope(client=Client())
 
-_hub_cache = {}
+_scope_cache = {}
 
 
-def _resolve_hub_marker_value(marker_value):
-    if id(marker_value) not in _hub_cache:
-        _hub_cache[id(marker_value)] = rv = _resolve_hub_marker_value_uncached(
+def _resolve_scope_marker_value(marker_value):
+    if id(marker_value) not in _scope_cache:
+        _scope_cache[id(marker_value)] = rv = _resolve_scope_marker_value_uncached(
             marker_value
         )
         return rv
 
-    return _hub_cache[id(marker_value)]
+    return _scope_cache[id(marker_value)]
 
 
-def _resolve_hub_marker_value_uncached(marker_value):
+def _resolve_scope_marker_value_uncached(marker_value):
     if marker_value is None:
-        marker_value = DEFAULT_HUB
+        marker_value = DEFAULT_SCOPE
     else:
         marker_value = marker_value.args[0]
 
@@ -231,22 +236,22 @@ def _resolve_hub_marker_value_uncached(marker_value):
 
     if marker_value is None:
         # user explicitly disabled reporting
-        return Hub()
+        return Scope()
 
     if isinstance(marker_value, str):
-        return Hub(Client(marker_value))
+        return Scope(client=Client(marker_value))
 
     if isinstance(marker_value, dict):
-        return Hub(Client(**marker_value))
+        return Scope(client=Client(**marker_value))
 
     if isinstance(marker_value, Client):
-        return Hub(marker_value)
+        return Scope(client=marker_value)
 
-    if isinstance(marker_value, Hub):
+    if isinstance(marker_value, Scope):
         return marker_value
 
     raise RuntimeError(
-        "The `sentry_client` value must be a client, hub or string, not {}".format(
+        "The `sentry_client` value must be a client, scope or string, not {}".format(
             repr(type(marker_value))
         )
     )
@@ -259,7 +264,7 @@ def sentry_test_hub(request):
     """
 
     item = request.node
-    return _resolve_hub_marker_value(item.get_closest_marker("sentry_client"))
+    return _resolve_scope_marker_value(item.get_closest_marker("sentry_client"))
 
 
 def _process_stacktrace(stacktrace):
