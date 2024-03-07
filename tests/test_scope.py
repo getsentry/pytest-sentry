@@ -7,16 +7,19 @@ import pytest_sentry
 
 pytestmark = pytest.mark.sentry_client(pytest_sentry.Client())
 
-_DEFAULT_SCOPE = sentry_sdk.Scope.get_isolation_scope()
+_DEFAULT_GLOBAL_SCOPE = sentry_sdk.Scope.get_global_scope()
+_DEFAULT_ISOLATION_SCOPE = sentry_sdk.Scope.get_isolation_scope()
 
 
 def _assert_right_scopes():
-    for scope in (
-        sentry_sdk.Scope.get_global_scope(),
-        sentry_sdk.Scope.get_isolation_scope(),
-    ):
-        assert not scope.get_client().is_active()
-        assert scope is _DEFAULT_SCOPE
+    global_scope = sentry_sdk.Scope.get_global_scope()
+    isolation_scope = sentry_sdk.Scope.get_isolation_scope()
+
+    assert not global_scope.get_client().is_active()
+    assert global_scope is _DEFAULT_GLOBAL_SCOPE
+
+    assert not isolation_scope.get_client().is_active()
+    assert isolation_scope is _DEFAULT_ISOLATION_SCOPE
 
 
 def test_basic():

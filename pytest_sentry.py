@@ -7,9 +7,9 @@ import wrapt
 import sentry_sdk
 from sentry_sdk.integrations import Integration
 
-from sentry_sdk import Hub, Scope, capture_exception
+from sentry_sdk import Scope, capture_exception
 from sentry_sdk.tracing import Transaction
-from sentry_sdk.scope import add_global_event_processor
+from sentry_sdk.scope import add_global_event_processor, use_isolation_scope
 
 _ENVVARS_AS_TAGS = frozenset(
     [
@@ -59,7 +59,7 @@ class PytestIntegration(Integration):
     def setup_once():
         @add_global_event_processor
         def procesor(event, hint):
-            if Hub.current.get_integration(PytestIntegration) is None:
+            if Scope.get_client().get_integration(PytestIntegration) is None:
                 return event
 
             for key in _ENVVARS_AS_TAGS:
@@ -108,20 +108,20 @@ def hookwrapper(itemgetter, **kwargs):
         item = itemgetter(*args, **kwargs)
         scope = _resolve_scope_marker_value(item.get_closest_marker("sentry_client"))
 
-        if scope.get_client().get_integration(PytestIntegration) is None:
+        if scope.client.get_integration(PytestIntegration) is None:
             yield
         else:
-            with sentry_sdk.push_scope():  # TODO: What do we do with scope here?
+            with use_isolation_scope(scope):  # TODO: What do we do with scope here?
                 gen = wrapped(*args, **kwargs)
 
             while True:
                 try:
-                    with sentry_sdk.push_scope():
+                    with use_isolation_scope(scope):
                         chunk = next(gen)
 
                     y = yield chunk
 
-                    with sentry_sdk.push_scope():
+                    with use_isolation_scope(scope):
                         gen.send(y)
 
                 except StopIteration:
@@ -142,7 +142,7 @@ def pytest_load_initial_conftests(early_config, parser, args):
 
 def _start_transaction(**kwargs):
     transaction = Transaction.continue_from_headers(
-        dict(Hub.current.iter_trace_propagation_headers()), **kwargs
+        dict(Scope.get_current_scope().iter_trace_propagation_headers()), **kwargs
     )
     transaction.same_process_as_parent = True
     return sentry_sdk.start_transaction(transaction)
@@ -203,7 +203,7 @@ def pytest_runtest_makereport(item, call):
                 call.excinfo
             ]
 
-        integration = Hub.current.get_integration(PytestIntegration)
+        integration = Scope.get_client().get_integration(PytestIntegration)
 
         if (cur_exc_chain and call.excinfo is None) or integration.always_report:
             for exc_info in cur_exc_chain:
@@ -258,9 +258,9 @@ def _resolve_scope_marker_value_uncached(marker_value):
 
 
 @pytest.fixture
-def sentry_test_hub(request):
+def sentry_test_scope(request):
     """
-    Gives back the current hub.
+    Gives back the current scope.
     """
 
     item = request.node

@@ -84,14 +84,14 @@ Advanced Options
 ================
 
 ``pytest-sentry`` supports marking your tests to use a different DSN, client or
-hub per-test. You can use this to provide custom options to the ``Client``
+scope per-test. You can use this to provide custom options to the ``Client``
 object from the `Sentry SDK for Python
 <https://github.com/getsentry/sentry-python>`_::
 
     import random
     import pytest
 
-    from sentry_sdk import Hub
+    from sentry_sdk import Scope
     from pytest_sentry import Client
 
     @pytest.mark.sentry_client(None)
@@ -108,7 +108,7 @@ object from the `Sentry SDK for Python
 
     @pytest.mark.sentry_client(Client("CUSTOM DSN"))
     @pytest.mark.sentry_client(lambda: Client("CUSTOM DSN"))
-    @pytest.mark.sentry_client(Hub(Client("CUSTOM DSN")))
+    @pytest.mark.sentry_client(Scope(Client("CUSTOM DSN")))
     @pytest.mark.sentry_client({"dsn": ..., "debug": True})
 
 
@@ -125,12 +125,12 @@ you configured this plugin with. That's because ``pytest-sentry`` goes to
 extreme lenghts to keep its own SDK setup separate from the SDK setup of the
 tested code.
 
-``pytest-sentry`` exposes the ``sentry_test_hub`` fixture whose return value is
-the ``Hub`` being used to send events to Sentry. Use ``with sentry_test_hub:``
+``pytest-sentry`` exposes the ``sentry_test_scope`` fixture whose return value is
+the ``Scope`` being used to send events to Sentry. Use ``with sentry_test_scope:``
 to temporarily switch context. You can use this to set custom tags like so::
 
-    def test_foo(sentry_test_hub):
-        with sentry_test_hub:
+    def test_foo(sentry_test_scope):
+        with sentry_test_scope:
             sentry_sdk.set_tag("pull_request", os.environ['EXAMPLE_CI_PULL_REQUEST'])
 
 
