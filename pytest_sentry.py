@@ -113,8 +113,7 @@ def hookwrapper(itemgetter, **kwargs):
 
             while True:
                 try:
-                    with hub:
-                        chunk = next(gen)
+                    chunk = next(gen)
 
                     y = yield chunk
 
