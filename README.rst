@@ -126,11 +126,11 @@ extreme lenghts to keep its own SDK setup separate from the SDK setup of the
 tested code.
 
 ``pytest-sentry`` exposes the ``sentry_test_scope`` fixture whose return value is
-the ``Scope`` being used to send events to Sentry. Use ``with sentry_test_scope:``
+the ``Scope`` being used to send events to Sentry. Use ``with use_scope(entry_test_scope):``
 to temporarily switch context. You can use this to set custom tags like so::
 
     def test_foo(sentry_test_scope):
-        with sentry_test_scope:
+        with use_scope(sentry_test_scope):
             sentry_sdk.set_tag("pull_request", os.environ['EXAMPLE_CI_PULL_REQUEST'])
 
 
