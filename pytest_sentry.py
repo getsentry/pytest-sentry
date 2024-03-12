@@ -9,7 +9,7 @@ from sentry_sdk.integrations import Integration
 
 from sentry_sdk import Scope, capture_exception
 from sentry_sdk.tracing import Transaction
-from sentry_sdk.scope import add_global_event_processor, use_isolation_scope
+from sentry_sdk.scope import add_global_event_processor, use_scope
 
 _ENVVARS_AS_TAGS = frozenset(
     [
@@ -111,17 +111,17 @@ def hookwrapper(itemgetter, **kwargs):
         if scope.client.get_integration(PytestIntegration) is None:
             yield
         else:
-            with use_isolation_scope(scope):  # TODO: What do we do with scope here?
+            with use_scope(scope):
                 gen = wrapped(*args, **kwargs)
 
             while True:
                 try:
-                    with use_isolation_scope(scope):
+                    with use_scope(scope):
                         chunk = next(gen)
 
                     y = yield chunk
 
-                    with use_isolation_scope(scope):
+                    with use_scope(scope):
                         gen.send(y)
 
                 except StopIteration:

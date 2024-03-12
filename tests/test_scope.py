@@ -26,6 +26,11 @@ def test_basic():
     _assert_right_scopes()
 
 
+def test_sentry_test_scope(sentry_test_scope):
+    # Ensure that we are within a transaction (started by the fixture)
+    assert sentry_test_scope.span is not None
+
+
 class TestSimpleClass(object):
     def setup_method(self):
         _assert_right_scopes()
