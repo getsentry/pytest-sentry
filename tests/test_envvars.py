@@ -1,5 +1,6 @@
 import pytest
 import sentry_sdk
+from sentry_sdk.scope import use_scope
 import pytest_sentry
 
 events = []
@@ -26,9 +27,9 @@ def clear_events(monkeypatch):
 pytestmark = pytest.mark.sentry_client(pytest_sentry.Client(transport=MyTransport()))
 
 
-def test_basic(sentry_test_hub):
-    with sentry_test_hub:
-        sentry_test_hub.capture_message("hi")
+def test_basic(sentry_test_scope):
+    with use_scope(sentry_test_scope):
+        sentry_test_scope.capture_message("hi")
 
     (event,) = events
     assert event["tags"]["pytest_environ.GITHUB_RUN_ID"] == "123abc"
