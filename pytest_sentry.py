@@ -4,12 +4,13 @@ import os
 import pytest
 
 import wrapt
-import sentry_sdk
-from sentry_sdk.integrations import Integration
 
-from sentry_sdk import Scope, capture_exception
-from sentry_sdk.tracing import Transaction
-from sentry_sdk.scope import add_global_event_processor, use_scope
+import sentry_sdk
+from sentry_sdk.opentelemetry.scope import PotelScope as Scope, use_scope
+from sentry_sdk import capture_exception
+from sentry_sdk.integrations import Integration
+from sentry_sdk.scope import add_global_event_processor
+
 
 _ENVVARS_AS_TAGS = frozenset(
     [
@@ -53,9 +54,9 @@ _ENVVARS_AS_TAGS = frozenset(
         "CIRCLE_SHA1", # The SHA1 hash of the last commit of the current build.
         "CIRCLE_TAG", # The name of the git tag, if the current build is tagged.
         "CIRCLE_USERNAME", # The GitHub or Bitbucket username of the user who triggered the pipeline.
-        "CIRCLE_WORKFLOW_ID", # A unique identifier for the workflow instance of the current job. 
+        "CIRCLE_WORKFLOW_ID", # A unique identifier for the workflow instance of the current job.
         "CIRCLE_WORKFLOW_JOB_ID", # A unique identifier for the current job.
-        "CIRCLE_WORKFLOW_WORKSPACE_ID", # An identifier for the workspace of the current job. 
+        "CIRCLE_WORKFLOW_WORKSPACE_ID", # An identifier for the workspace of the current job.
     ]
 )
 
@@ -161,11 +162,9 @@ def pytest_load_initial_conftests(early_config, parser, args):
 
 
 def _start_transaction(**kwargs):
-    transaction = Transaction.continue_from_headers(
-        dict(Scope.get_current_scope().iter_trace_propagation_headers()), **kwargs
-    )
-    transaction.same_process_as_parent = True
-    return sentry_sdk.start_transaction(transaction)
+    with sentry_sdk.continue_trace(dict(Scope.get_current_scope().iter_trace_propagation_headers())):
+        with sentry_sdk.start_span(**kwargs) as root_span:
+            return root_span
 
 
 @hookwrapper(itemgetter=lambda item: item)
@@ -176,13 +175,10 @@ def pytest_runtest_protocol(item):
 
     # We use the full name including parameters because then we can identify
     # how often a single test has run as part of the same GITHUB_RUN_ID.
-
-    with _start_transaction(op=op, name="{} {}".format(op, name)) as tx:
+    # Purposefully drop transaction to spare quota. We only created it to
+    # have a trace_id to correlate by.
+    with _start_transaction(op=op, name="{} {}".format(op, name), sampled=False) as tx:
         yield
-
-        # Purposefully drop transaction to spare quota. We only created it to
-        # have a trace_id to correlate by.
-        tx.sampled = False
 
 
 @hookwrapper(itemgetter=lambda item: item)
@@ -259,13 +255,19 @@ def _resolve_scope_marker_value_uncached(marker_value):
         return Scope()
 
     if isinstance(marker_value, str):
-        return Scope(client=Client(marker_value))
+        scope = sentry_sdk.get_isolation_scope()
+        scope.set_client(Client(marker_value))
+        return scope
 
     if isinstance(marker_value, dict):
-        return Scope(client=Client(**marker_value))
+        scope = sentry_sdk.get_isolation_scope()
+        scope.set_client(Client(**marker_value))
+        return scope
 
     if isinstance(marker_value, Client):
-        return Scope(client=marker_value)
+        scope = sentry_sdk.get_isolation_scope()
+        scope.set_client(marker_value)
+        return scope
 
     if isinstance(marker_value, Scope):
         return marker_value
