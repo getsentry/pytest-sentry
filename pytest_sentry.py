@@ -255,17 +255,17 @@ def _resolve_scope_marker_value_uncached(marker_value):
         return Scope()
 
     if isinstance(marker_value, str):
-        scope = sentry_sdk.get_isolation_scope()
+        scope = sentry_sdk.get_current_scope()
         scope.set_client(Client(marker_value))
         return scope
 
     if isinstance(marker_value, dict):
-        scope = sentry_sdk.get_isolation_scope()
+        scope = sentry_sdk.get_current_scope()
         scope.set_client(Client(**marker_value))
         return scope
 
     if isinstance(marker_value, Client):
-        scope = sentry_sdk.get_isolation_scope()
+        scope = sentry_sdk.get_current_scope()
         scope.set_client(marker_value)
         return scope
 
