@@ -1,9 +1,8 @@
 import pytest
+import pytest_sentry
 
 import sentry_sdk
-from sentry_sdk import use_scope
 
-import pytest_sentry
 
 events = []
 envelopes = []
@@ -30,7 +29,7 @@ pytestmark = pytest.mark.sentry_client(pytest_sentry.Client(transport=MyTranspor
 
 
 def test_basic(sentry_test_scope):
-    with use_scope(sentry_test_scope):
+    with sentry_sdk.use_scope(sentry_test_scope):
         sentry_test_scope.capture_message("hi")
 
     (event,) = events
