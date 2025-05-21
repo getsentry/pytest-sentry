@@ -1,7 +1,7 @@
 import pytest
 
 import sentry_sdk
-from sentry_sdk.opentelemetry.scope import use_scope
+from sentry_sdk import use_scope
 
 import pytest_sentry
 

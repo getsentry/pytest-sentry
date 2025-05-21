@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import pytest
 import unittest
-from sentry_sdk.opentelemetry.scope import PotelScope as Scope
+from sentry_sdk import Scope
 import pytest_sentry
 
 pytestmark = pytest.mark.sentry_client(pytest_sentry.Client())

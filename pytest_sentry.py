@@ -162,7 +162,7 @@ def pytest_load_initial_conftests(early_config, parser, args):
 
 
 def _start_transaction(**kwargs):
-    with sentry_sdk.continue_trace(dict(Scope.get_current_scope().iter_trace_propagation_headers())):
+    with sentry_sdk.continue_trace(dict(sentry_sdk.get_current_scope().iter_trace_propagation_headers())):
         with sentry_sdk.start_span(**kwargs) as root_span:
             return root_span
 
