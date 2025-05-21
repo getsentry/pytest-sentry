@@ -6,8 +6,7 @@ import pytest
 import wrapt
 
 import sentry_sdk
-from sentry_sdk.opentelemetry.scope import PotelScope as Scope, use_scope
-from sentry_sdk import capture_exception
+from sentry_sdk import capture_exception, Scope, use_scope
 from sentry_sdk.integrations import Integration
 from sentry_sdk.scope import add_global_event_processor
 
