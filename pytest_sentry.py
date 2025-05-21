@@ -1,12 +1,8 @@
-from __future__ import absolute_import
-
 import os
 import pytest
-
 import wrapt
 
 import sentry_sdk
-from sentry_sdk import capture_exception, Scope, use_scope
 from sentry_sdk.integrations import Integration
 from sentry_sdk.scope import add_global_event_processor
 
@@ -78,7 +74,7 @@ class PytestIntegration(Integration):
     def setup_once():
         @add_global_event_processor
         def procesor(event, hint):
-            if Scope.get_client().get_integration(PytestIntegration) is None:
+            if sentry_sdk.Scope.get_client().get_integration(PytestIntegration) is None:
                 return event
 
             for key in _ENVVARS_AS_TAGS:
@@ -131,17 +127,17 @@ def hookwrapper(itemgetter, **kwargs):
         if scope.client.get_integration(PytestIntegration) is None:
             yield
         else:
-            with use_scope(scope):
+            with sentry_sdk.use_scope(scope):
                 gen = wrapped(*args, **kwargs)
 
             while True:
                 try:
-                    with use_scope(scope):
+                    with sentry_sdk.use_scope(scope):
                         chunk = next(gen)
 
                     y = yield chunk
 
-                    with use_scope(scope):
+                    with sentry_sdk.use_scope(scope):
                         gen.send(y)
 
                 except StopIteration:
@@ -218,14 +214,14 @@ def pytest_runtest_makereport(item, call):
                 call.excinfo
             ]
 
-        integration = Scope.get_client().get_integration(PytestIntegration)
+        integration = sentry_sdk.Scope.get_client().get_integration(PytestIntegration)
 
         if (cur_exc_chain and call.excinfo is None) or integration.always_report:
             for exc_info in cur_exc_chain:
-                capture_exception((exc_info.type, exc_info.value, exc_info.tb))
+                sentry_sdk.capture_exception((exc_info.type, exc_info.value, exc_info.tb))
 
 
-DEFAULT_SCOPE = Scope(client=Client())
+DEFAULT_SCOPE = sentry_sdk.Scope(client=Client())
 
 _scope_cache = {}
 
@@ -251,7 +247,7 @@ def _resolve_scope_marker_value_uncached(marker_value):
 
     if marker_value is None:
         # user explicitly disabled reporting
-        return Scope()
+        return sentry_sdk.Scope()
 
     if isinstance(marker_value, str):
         scope = sentry_sdk.get_current_scope()
@@ -268,7 +264,7 @@ def _resolve_scope_marker_value_uncached(marker_value):
         scope.set_client(marker_value)
         return scope
 
-    if isinstance(marker_value, Scope):
+    if isinstance(marker_value, sentry_sdk.Scope):
         return marker_value
 
     raise RuntimeError(

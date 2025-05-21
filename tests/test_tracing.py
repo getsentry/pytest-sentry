@@ -1,8 +1,8 @@
-from __future__ import absolute_import
-
 import pytest
-import sentry_sdk
 import pytest_sentry
+
+import sentry_sdk
+
 
 transactions = []
 

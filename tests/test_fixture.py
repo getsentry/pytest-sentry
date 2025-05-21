@@ -1,7 +1,6 @@
-from __future__ import absolute_import
-
 import pytest
 import pytest_sentry
+
 
 GLOBAL_CLIENT = pytest_sentry.Client()
 pytestmark = pytest.mark.sentry_client(GLOBAL_CLIENT)

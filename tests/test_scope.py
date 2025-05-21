@@ -1,21 +1,22 @@
-from __future__ import absolute_import
-
 import pytest
-import unittest
-from sentry_sdk import Scope
 import pytest_sentry
+import unittest
+
+import sentry_sdk
+
+
 
 pytestmark = pytest.mark.sentry_client(pytest_sentry.Client())
 
-_DEFAULT_GLOBAL_SCOPE = Scope.get_global_scope()
-_DEFAULT_ISOLATION_SCOPE = Scope.get_isolation_scope()
+_DEFAULT_GLOBAL_SCOPE = sentry_sdk.Scope.get_global_scope()
+_DEFAULT_ISOLATION_SCOPE = sentry_sdk.Scope.get_isolation_scope()
 
 
 def _assert_right_scopes():
-    global_scope = Scope.get_global_scope()
+    global_scope = sentry_sdk.Scope.get_global_scope()
     assert global_scope is _DEFAULT_GLOBAL_SCOPE
 
-    isolation_scope = Scope.get_isolation_scope()
+    isolation_scope = sentry_sdk.Scope.get_isolation_scope()
     assert isolation_scope is _DEFAULT_ISOLATION_SCOPE
 
 
