@@ -7,7 +7,7 @@ from .helpers import _resolve_scope_marker_value
 from .integration import PytestIntegration
 
 
-def _start_transaction(**kwargs):
+def _start_span(**kwargs):
     with sentry_sdk.continue_trace(dict(sentry_sdk.get_current_scope().iter_trace_propagation_headers())):
         with sentry_sdk.start_span(**kwargs) as root_span:
             return root_span
@@ -76,7 +76,7 @@ def pytest_runtest_protocol(item):
     # how often a single test has run as part of the same GITHUB_RUN_ID.
     # Purposefully drop transaction to spare quota. We only created it to
     # have a trace_id to correlate by.
-    with _start_transaction(op=op, name=name, sampled=False):
+    with _start_span(op=op, name=name, sampled=False):
         yield
 
 
@@ -91,7 +91,7 @@ def pytest_runtest_call(item):
 
     # We use the full name including parameters because then we can identify
     # how often a single test has run as part of the same GITHUB_RUN_ID.
-    with _start_transaction(op=op, name=name):
+    with _start_span(op=op, name=name):
         yield
 
 
@@ -104,7 +104,7 @@ def pytest_fixture_setup(fixturedef, request):
     op = "pytest.fixture.setup"
     name = "{} {}".format(op, fixturedef.argname)
 
-    with _start_transaction(op=op, name=name) as transaction:
+    with _start_span(op=op, name=name) as transaction:
         transaction.set_tag("pytest.fixture.scope", fixturedef.scope)
         yield
 
