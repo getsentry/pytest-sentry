@@ -108,6 +108,9 @@ class Client(sentry_sdk.Client):
         kwargs.setdefault("environment", os.environ.get("SENTRY_ENVIRONMENT", "test"))
         kwargs.setdefault("integrations", []).append(PytestIntegration())
 
+        debug = os.environ.get("PYTEST_SENTRY_DEBUG", "").lower() in ("1", "true", "yes")
+        kwargs.setdefault("debug", debug)
+
         sentry_sdk.Client.__init__(self, *args, **kwargs)
 
 
@@ -150,6 +153,10 @@ def hookwrapper(itemgetter, **kwargs):
 
 
 def pytest_load_initial_conftests(early_config, parser, args):
+    """
+    Pytest hook that is called when pytest starts.
+    See https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_load_initial_conftests
+    """
     early_config.addinivalue_line(
         "markers",
         "sentry_client(client=None): Use this client instance for reporting tests. You can also pass a DSN string directly, or a `Scope` if you need it.",
@@ -164,46 +171,63 @@ def _start_transaction(**kwargs):
 
 @hookwrapper(itemgetter=lambda item: item)
 def pytest_runtest_protocol(item):
+    """
+    Pytest hook that is called when one test is run.
+    The runtest protocol includes setup phase, call phase and teardown phase.
+    See https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_runtest_protocol
+    """
     op = "pytest.runtest.protocol"
-
-    name = item.nodeid
+    name = "{} {}".format(op, item.nodeid)
 
     # We use the full name including parameters because then we can identify
     # how often a single test has run as part of the same GITHUB_RUN_ID.
     # Purposefully drop transaction to spare quota. We only created it to
     # have a trace_id to correlate by.
-    with _start_transaction(op=op, name="{} {}".format(op, name), sampled=False) as tx:
+    with _start_transaction(op=op, name=name, sampled=False):
         yield
 
 
 @hookwrapper(itemgetter=lambda item: item)
 def pytest_runtest_call(item):
+    """
+    Pytest hook that is called when the call phase of a test is run.
+    See https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_runtest_call
+    """
     op = "pytest.runtest.call"
-
-    name = item.nodeid
+    name = "{} {}".format(op, item.nodeid)
 
     # We use the full name including parameters because then we can identify
     # how often a single test has run as part of the same GITHUB_RUN_ID.
-
-    with _start_transaction(op=op, name="{} {}".format(op, name)):
+    with _start_transaction(op=op, name=name):
         yield
 
 
 @hookwrapper(itemgetter=lambda fixturedef, request: request._pyfuncitem)
 def pytest_fixture_setup(fixturedef, request):
+    """
+    Pytest hook that is called when the fixtures are initially set up.
+    See: https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_fixture_setup
+    """
     op = "pytest.fixture.setup"
-    with _start_transaction(
-        op=op, name="{} {}".format(op, fixturedef.argname)
-    ) as transaction:
+    name = "{} {}".format(op, fixturedef.argname)
+
+    with _start_transaction(op=op, name=name) as transaction:
         transaction.set_tag("pytest.fixture.scope", fixturedef.scope)
         yield
 
 
 @hookwrapper(tryfirst=True, itemgetter=lambda item, call: item)
 def pytest_runtest_makereport(item, call):
+    """
+    Pytest hook that is called when the report is made for a test.
+    This is executed for the setup, call and teardown phases.
+    See: https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_runtest_makereport
+    """
     sentry_sdk.set_tag("pytest.result", "pending")
+
     report = yield
     outcome = report.get_result().outcome
+
     sentry_sdk.set_tag("pytest.result", outcome)
 
     if call.when == "call" and outcome != "skipped":
@@ -275,6 +299,13 @@ def _resolve_scope_marker_value_uncached(marker_value):
     )
 
 
+def _process_stacktrace(stacktrace):
+    for frame in stacktrace["frames"]:
+        frame["in_app"] = not frame["module"].startswith(
+            ("_pytest.", "pytest.", "pluggy.")
+        )
+
+
 @pytest.fixture
 def sentry_test_scope(request):
     """
@@ -283,10 +314,3 @@ def sentry_test_scope(request):
 
     item = request.node
     return _resolve_scope_marker_value(item.get_closest_marker("sentry_client"))
-
-
-def _process_stacktrace(stacktrace):
-    for frame in stacktrace["frames"]:
-        frame["in_app"] = not frame["module"].startswith(
-            ("_pytest.", "pytest.", "pluggy.")
-        )
