@@ -47,6 +47,8 @@ def _resolve_scope_marker_value_uncached(marker_value):
         return scope
 
     if isinstance(marker_value, sentry_sdk.Scope):
+        scope = sentry_sdk.get_current_scope()
+        scope.set_client(marker_value.client)
         return marker_value
 
     raise RuntimeError(
