@@ -4,7 +4,7 @@ import wrapt
 import sentry_sdk
 
 from .helpers import _resolve_scope_marker_value
-from .pytest_integration import PytestIntegration
+from .integration import PytestIntegration
 
 
 def _start_transaction(**kwargs):

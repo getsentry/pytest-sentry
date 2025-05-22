@@ -1,7 +1,7 @@
 import os
 import sentry_sdk
 
-from .pytest_integration import PytestIntegration
+from .integration import PytestIntegration
 
 
 class Client(sentry_sdk.Client):
