@@ -74,7 +74,7 @@ class PytestIntegration(Integration):
     def setup_once():
         @add_global_event_processor
         def procesor(event, hint):
-            if sentry_sdk.Scope.get_client().get_integration(PytestIntegration) is None:
+            if sentry_sdk.get_client().get_integration(PytestIntegration) is None:
                 return event
 
             for key in _ENVVARS_AS_TAGS:
@@ -214,9 +214,10 @@ def pytest_runtest_makereport(item, call):
                 call.excinfo
             ]
 
-        integration = sentry_sdk.Scope.get_client().get_integration(PytestIntegration)
+        scope = _resolve_scope_marker_value(item.get_closest_marker("sentry_client"))
+        integration = scope.client.get_integration(PytestIntegration)
 
-        if (cur_exc_chain and call.excinfo is None) or integration.always_report:
+        if (cur_exc_chain and call.excinfo is None) or (integration is not None and integration.always_report):
             for exc_info in cur_exc_chain:
                 sentry_sdk.capture_exception((exc_info.type, exc_info.value, exc_info.tb))
 
