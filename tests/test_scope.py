@@ -5,8 +5,9 @@ import unittest
 import sentry_sdk
 
 
+GLOBAL_CLIENT = pytest_sentry.Client()
 
-pytestmark = pytest.mark.sentry_client(pytest_sentry.Client())
+pytestmark = pytest.mark.sentry_client(GLOBAL_CLIENT)
 
 _DEFAULT_GLOBAL_SCOPE = sentry_sdk.Scope.get_global_scope()
 _DEFAULT_ISOLATION_SCOPE = sentry_sdk.Scope.get_isolation_scope()
