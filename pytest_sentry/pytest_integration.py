@@ -31,7 +31,7 @@ class PytestIntegration(Integration):
     @staticmethod
     def setup_once():
         @add_global_event_processor
-        def procesor(event, hint):
+        def processor(event, hint):
             if sentry_sdk.get_client().get_integration(PytestIntegration) is None:
                 return event
 
