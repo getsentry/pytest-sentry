@@ -81,7 +81,10 @@ def pytest_runtest_call(item):
     See https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_runtest_call
     """
     op = "pytest.runtest.call"
-    name = "{} {}".format(op, item.nodeid)
+    if hasattr(item, "execution_count") and item.execution_count is not None and item.execution_count > 1:
+        name = "{} (rerun {}) {}".format(op, item.execution_count-1, item.nodeid)
+    else:
+        name = "{} {}".format(op, item.nodeid)
 
     # We use the full name including parameters because then we can identify
     # how often a single test has run as part of the same GITHUB_RUN_ID.
