@@ -7,12 +7,6 @@ from .helpers import _resolve_scope_marker_value
 from .integration import PytestIntegration
 
 
-def _start_span(**kwargs):
-    with sentry_sdk.continue_trace(dict(sentry_sdk.get_current_scope().iter_trace_propagation_headers())):
-        with sentry_sdk.start_span(**kwargs) as root_span:
-            return root_span
-
-
 def pytest_load_initial_conftests(early_config, parser, args):
     """
     Pytest hook that is called when pytest starts.
@@ -76,7 +70,7 @@ def pytest_runtest_protocol(item):
     # how often a single test has run as part of the same GITHUB_RUN_ID.
     # Purposefully drop transaction to spare quota. We only created it to
     # have a trace_id to correlate by.
-    with _start_span(op=op, name=name, sampled=False):
+    with sentry_sdk.start_span(op=op, name=name, sampled=False):
         yield
 
 
@@ -91,8 +85,9 @@ def pytest_runtest_call(item):
 
     # We use the full name including parameters because then we can identify
     # how often a single test has run as part of the same GITHUB_RUN_ID.
-    with _start_span(op=op, name=name):
-        yield
+    with sentry_sdk.continue_trace(dict(sentry_sdk.get_current_scope().iter_trace_propagation_headers())):
+        with sentry_sdk.start_span(op=op, name=name):
+            yield
 
 
 @hookwrapper(itemgetter=lambda fixturedef, request: request._pyfuncitem)
@@ -104,9 +99,10 @@ def pytest_fixture_setup(fixturedef, request):
     op = "pytest.fixture.setup"
     name = "{} {}".format(op, fixturedef.argname)
 
-    with _start_span(op=op, name=name) as transaction:
-        transaction.set_tag("pytest.fixture.scope", fixturedef.scope)
-        yield
+    with sentry_sdk.continue_trace(dict(sentry_sdk.get_current_scope().iter_trace_propagation_headers())):
+        with sentry_sdk.start_span(op=op, name=name) as root_span:
+            root_span.set_tag("pytest.fixture.scope", fixturedef.scope)
+            yield
 
 
 @hookwrapper(tryfirst=True, itemgetter=lambda item, call: item)
