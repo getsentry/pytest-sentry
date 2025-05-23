@@ -1,10 +1,18 @@
 import pytest
-import sentry_sdk
-from sentry_sdk.scope import use_scope
 import pytest_sentry
+
+import sentry_sdk
+
 
 events = []
 envelopes = []
+
+
+@pytest.fixture(autouse=True)
+def clear_events(monkeypatch):
+    monkeypatch.setenv("GITHUB_RUN_ID", "123abc")
+    events.clear()
+    envelopes.clear()
 
 
 class MyTransport(sentry_sdk.Transport):
@@ -17,18 +25,14 @@ class MyTransport(sentry_sdk.Transport):
             events.append(envelope.get_event())
 
 
-@pytest.fixture(autouse=True)
-def clear_events(monkeypatch):
-    monkeypatch.setenv("GITHUB_RUN_ID", "123abc")
-    events.clear()
-    envelopes.clear()
+GLOBAL_TRANSPORT = MyTransport()
+GLOBAL_CLIENT = pytest_sentry.Client(transport=GLOBAL_TRANSPORT)
 
-
-pytestmark = pytest.mark.sentry_client(pytest_sentry.Client(transport=MyTransport()))
+pytestmark = pytest.mark.sentry_client(GLOBAL_CLIENT)
 
 
 def test_basic(sentry_test_scope):
-    with use_scope(sentry_test_scope):
+    with sentry_sdk.use_scope(sentry_test_scope):
         sentry_test_scope.capture_message("hi")
 
     (event,) = events

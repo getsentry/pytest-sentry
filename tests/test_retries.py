@@ -1,12 +1,10 @@
-from __future__ import absolute_import
-
 import pytest
+import pytest_sentry
+
 import sentry_sdk
 
-from pytest_sentry import Client
 
 i = 0
-
 events = []
 
 
@@ -20,7 +18,7 @@ class MyTransport(sentry_sdk.Transport):
 
 
 @pytest.mark.flaky(reruns=2)
-@pytest.mark.sentry_client(Client(transport=MyTransport(), traces_sample_rate=0.0))
+@pytest.mark.sentry_client(pytest_sentry.Client(transport=MyTransport(), traces_sample_rate=0.0))
 def test_basic(request):
     global i
     i += 1

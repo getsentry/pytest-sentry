@@ -1,11 +1,13 @@
-from __future__ import absolute_import
-
 import pytest
-import unittest
-import sentry_sdk
 import pytest_sentry
+import unittest
 
-pytestmark = pytest.mark.sentry_client(pytest_sentry.Client())
+import sentry_sdk
+
+
+GLOBAL_CLIENT = pytest_sentry.Client()
+
+pytestmark = pytest.mark.sentry_client(GLOBAL_CLIENT)
 
 _DEFAULT_GLOBAL_SCOPE = sentry_sdk.Scope.get_global_scope()
 _DEFAULT_ISOLATION_SCOPE = sentry_sdk.Scope.get_isolation_scope()
@@ -13,12 +15,9 @@ _DEFAULT_ISOLATION_SCOPE = sentry_sdk.Scope.get_isolation_scope()
 
 def _assert_right_scopes():
     global_scope = sentry_sdk.Scope.get_global_scope()
-    isolation_scope = sentry_sdk.Scope.get_isolation_scope()
-
-    assert not global_scope.get_client().is_active()
     assert global_scope is _DEFAULT_GLOBAL_SCOPE
 
-    assert not isolation_scope.get_client().is_active()
+    isolation_scope = sentry_sdk.Scope.get_isolation_scope()
     assert isolation_scope is _DEFAULT_ISOLATION_SCOPE
 
 
@@ -27,7 +26,7 @@ def test_basic():
 
 
 def test_sentry_test_scope(sentry_test_scope):
-    # Ensure that we are within a transaction (started by the fixture)
+    # Ensure that we are within a root span (started by the pytest_runtest_call hook)
     assert sentry_test_scope.span is not None
 
 

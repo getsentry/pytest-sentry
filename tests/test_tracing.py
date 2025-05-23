@@ -1,8 +1,8 @@
-from __future__ import absolute_import
-
 import pytest
-import sentry_sdk
 import pytest_sentry
+
+import sentry_sdk
+
 
 transactions = []
 
@@ -15,7 +15,10 @@ class MyTransport(sentry_sdk.Transport):
         transactions.append(envelope.get_transaction_event())
 
 
-pytestmark = pytest.mark.sentry_client(pytest_sentry.Client(transport=MyTransport()))
+GLOBAL_TRANSPORT = MyTransport()
+GLOBAL_CLIENT = pytest_sentry.Client(transport=GLOBAL_TRANSPORT)
+
+pytestmark = pytest.mark.sentry_client(GLOBAL_CLIENT)
 
 
 @pytest.fixture
