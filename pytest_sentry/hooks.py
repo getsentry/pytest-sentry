@@ -81,7 +81,8 @@ def pytest_runtest_call(item):
     See https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_runtest_call
     """
     op = "pytest.runtest.call"
-    if hasattr(item, "execution_count") and item.execution_count is not None and item.execution_count > 1:
+    is_rerun = hasattr(item, "execution_count") and item.execution_count is not None and item.execution_count > 1
+    if is_rerun:
         name = "{} (rerun {}) {}".format(op, item.execution_count-1, item.nodeid)
     else:
         name = "{} {}".format(op, item.nodeid)
@@ -89,7 +90,9 @@ def pytest_runtest_call(item):
     # We use the full name including parameters because then we can identify
     # how often a single test has run as part of the same GITHUB_RUN_ID.
     with sentry_sdk.continue_trace(dict(sentry_sdk.get_current_scope().iter_trace_propagation_headers())):
-        with sentry_sdk.start_span(op=op, name=name):
+        with sentry_sdk.start_span(op=op, name=name) as span:
+            span.set_attribute("pytest-sentry.rerun", is_rerun)
+            span.set_attribute("pytest-sentry.execution_count", item.execution_count)
             yield
 
 
