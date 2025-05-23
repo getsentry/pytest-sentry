@@ -92,7 +92,9 @@ def pytest_runtest_call(item):
     with sentry_sdk.continue_trace(dict(sentry_sdk.get_current_scope().iter_trace_propagation_headers())):
         with sentry_sdk.start_span(op=op, name=name) as span:
             span.set_attribute("pytest-sentry.rerun", is_rerun)
-            span.set_attribute("pytest-sentry.execution_count", item.execution_count)
+            if is_rerun:
+                span.set_attribute("pytest-sentry.execution_count", item.execution_count)
+
             yield
 
 
