@@ -1,6 +1,6 @@
-from .client import Client
-from .fixtures import sentry_test_scope
-from .hooks import (
+from .client import Client  # noqa: F401
+from .fixtures import sentry_test_scope  # noqa: F401
+from .hooks import (  # noqa: F401
     pytest_fixture_setup,
     pytest_load_initial_conftests,
     pytest_runtest_call,

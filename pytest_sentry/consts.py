@@ -25,23 +25,23 @@ _ENVVARS_AS_TAGS = frozenset(
         "CI_SERVER_URL",
         "GITLAB_USER_NAME",  # The name of the user who started the job.
         # CircleCI variables, as defined here https://circleci.com/docs/variables/#built-in-environment-variables
-        "CIRCLE_BRANCH", # The name of the Git branch currently being built.
-        "CIRCLE_BUILD_NUM", # The number of the current job. Job numbers are unique for each job.
-        "CIRCLE_BUILD_URL", # The URL for the current job on CircleCI.
-        "CIRCLE_JOB", # The name of the current job.
-        "CIRCLE_NODE_INDEX", # For jobs that run with parallelism enabled, this is the index of the current parallel run.
-        "CIRCLE_PR_NUMBER", # The number of the associated GitHub or Bitbucket pull request.
-        "CIRCLE_PR_REPONAME", # The name of the GitHub or Bitbucket repository where the pull request was created.
-        "CIRCLE_PR_USERNAME", # The GitHub or Bitbucket username of the user who created the pull request.
-        "CIRCLE_PROJECT_REPONAME", # The name of the repository of the current project.
-        "CIRCLE_PROJECT_USERNAME", # The GitHub or Bitbucket username of the current project.
-        "CIRCLE_PULL_REQUEST", # The URL of the associated pull request.
-        "CIRCLE_REPOSITORY_URL", # The URL of your GitHub or Bitbucket repository.
-        "CIRCLE_SHA1", # The SHA1 hash of the last commit of the current build.
-        "CIRCLE_TAG", # The name of the git tag, if the current build is tagged.
-        "CIRCLE_USERNAME", # The GitHub or Bitbucket username of the user who triggered the pipeline.
-        "CIRCLE_WORKFLOW_ID", # A unique identifier for the workflow instance of the current job.
-        "CIRCLE_WORKFLOW_JOB_ID", # A unique identifier for the current job.
-        "CIRCLE_WORKFLOW_WORKSPACE_ID", # An identifier for the workspace of the current job.
+        "CIRCLE_BRANCH",  # The name of the Git branch currently being built.
+        "CIRCLE_BUILD_NUM",  # The number of the current job. Job numbers are unique for each job.
+        "CIRCLE_BUILD_URL",  # The URL for the current job on CircleCI.
+        "CIRCLE_JOB",  # The name of the current job.
+        "CIRCLE_NODE_INDEX",  # For jobs that run with parallelism enabled, this is the index of the current parallel run.
+        "CIRCLE_PR_NUMBER",  # The number of the associated GitHub or Bitbucket pull request.
+        "CIRCLE_PR_REPONAME",  # The name of the GitHub or Bitbucket repository where the pull request was created.
+        "CIRCLE_PR_USERNAME",  # The GitHub or Bitbucket username of the user who created the pull request.
+        "CIRCLE_PROJECT_REPONAME",  # The name of the repository of the current project.
+        "CIRCLE_PROJECT_USERNAME",  # The GitHub or Bitbucket username of the current project.
+        "CIRCLE_PULL_REQUEST",  # The URL of the associated pull request.
+        "CIRCLE_REPOSITORY_URL",  # The URL of your GitHub or Bitbucket repository.
+        "CIRCLE_SHA1",  # The SHA1 hash of the last commit of the current build.
+        "CIRCLE_TAG",  # The name of the git tag, if the current build is tagged.
+        "CIRCLE_USERNAME",  # The GitHub or Bitbucket username of the user who triggered the pipeline.
+        "CIRCLE_WORKFLOW_ID",  # A unique identifier for the workflow instance of the current job.
+        "CIRCLE_WORKFLOW_JOB_ID",  # A unique identifier for the current job.
+        "CIRCLE_WORKFLOW_WORKSPACE_ID",  # An identifier for the workspace of the current job.
     ]
 )

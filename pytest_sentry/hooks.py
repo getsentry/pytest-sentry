@@ -83,7 +83,7 @@ def pytest_runtest_call(item):
     op = "pytest.runtest.call"
     is_rerun = hasattr(item, "execution_count") and item.execution_count is not None and item.execution_count > 1
     if is_rerun:
-        name = "{} (rerun {}) {}".format(op, item.execution_count-1, item.nodeid)
+        name = "{} (rerun {}) {}".format(op, item.execution_count - 1, item.nodeid)
     else:
         name = "{} {}".format(op, item.nodeid)
 
