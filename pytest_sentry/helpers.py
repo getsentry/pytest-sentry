@@ -3,7 +3,8 @@ import sentry_sdk
 from pytest_sentry.client import Client
 
 
-DEFAULT_SCOPE = sentry_sdk.Scope(client=Client())
+DEFAULT_SCOPE = sentry_sdk.Scope()
+DEFAULT_SCOPE.set_client(Client())
 
 _scope_cache = {}
 

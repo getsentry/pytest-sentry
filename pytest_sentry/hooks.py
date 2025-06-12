@@ -14,7 +14,7 @@ def pytest_load_initial_conftests(early_config, parser, args):
     """
     early_config.addinivalue_line(
         "markers",
-        "sentry_client(client=None): Use this client instance for reporting tests. You can also pass a DSN string directly, or a `Scope` if you need it.",
+        "sentry_client(value): Use this value for reporting tests. Can be a Client instance, DSN string, Scope, or dict of options.",
     )
 
 
