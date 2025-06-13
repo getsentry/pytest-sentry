@@ -27,8 +27,11 @@ def test_basic(request):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def assert_report():
+def assert_reporting_worked():
+    # Run the test
     yield
+
+    # Check if reporting to Sentry was correctly done
     (event,) = events
     (exception,) = event["exception"]["values"]
     assert exception["type"] == "ZeroDivisionError"

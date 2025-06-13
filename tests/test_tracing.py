@@ -31,13 +31,15 @@ def test_basic(foo_fixture):
 
 
 @pytest.fixture(scope="module", autouse=True)
-def assert_report():
+def assert_reporting_worked():
+    # Run the test
     yield
 
+    # Check if reporting to Sentry was correctly done
     self_transaction, fixture_transaction, test_transaction = transactions
 
     assert self_transaction["type"] == "transaction"
-    assert self_transaction["transaction"] == "pytest.fixture.setup assert_report"
+    assert self_transaction["transaction"] == "pytest.fixture.setup assert_reporting_worked"
 
     assert fixture_transaction["type"] == "transaction"
     assert fixture_transaction["transaction"] == "pytest.fixture.setup foo_fixture"

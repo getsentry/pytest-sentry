@@ -32,6 +32,9 @@ def test_xfail():
 
 
 @pytest.fixture(scope="session", autouse=True)
-def assert_report():
+def assert_reporting_worked():
+    # Run the test
     yield
+
+    # Check if reporting to Sentry was correctly done
     assert not events

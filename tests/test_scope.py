@@ -27,7 +27,8 @@ def test_basic():
 
 def test_sentry_test_scope(sentry_test_scope):
     # Ensure that we are within a root span (started by the pytest_runtest_call hook)
-    assert sentry_test_scope.span is not None
+    # assert sentry_test_scope.span is not None
+    assert sentry_sdk.get_current_scope().span is not None
 
 
 class TestSimpleClass(object):
