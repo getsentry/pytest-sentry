@@ -32,7 +32,7 @@ pytestmark = pytest.mark.sentry_client(GLOBAL_CLIENT)
 
 
 def test_basic(sentry_test_scope):
-    with sentry_sdk.use_scope(sentry_test_scope):
+    with sentry_sdk.use_isolation_scope(sentry_test_scope):
         sentry_test_scope.capture_message("hi")
 
     (event,) = events
