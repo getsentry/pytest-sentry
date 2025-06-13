@@ -1,22 +1,6 @@
 import pytest
-import pytest_sentry
+from .conftest import GLOBAL_CLIENT
 
-import sentry_sdk
-
-
-transactions = []
-
-
-class MyTransport(sentry_sdk.Transport):
-    def __init__(self):
-        pass
-
-    def capture_envelope(self, envelope):
-        transactions.append(envelope.get_transaction_event())
-
-
-GLOBAL_TRANSPORT = MyTransport()
-GLOBAL_CLIENT = pytest_sentry.Client(transport=GLOBAL_TRANSPORT)
 
 pytestmark = pytest.mark.sentry_client(GLOBAL_CLIENT)
 
@@ -36,7 +20,7 @@ def assert_reporting_worked():
     yield
 
     # Check if reporting to Sentry was correctly done
-    self_transaction, fixture_transaction, test_transaction = transactions
+    self_transaction, fixture_transaction, test_transaction = GLOBAL_CLIENT.transport.transactions
 
     assert self_transaction["type"] == "transaction"
     assert self_transaction["transaction"] == "pytest.fixture.setup assert_reporting_worked"

@@ -1,13 +1,11 @@
 import pytest
-import pytest_sentry
+from .conftest import GLOBAL_CLIENT
 
-
-GLOBAL_CLIENT = pytest_sentry.Client()
 
 pytestmark = pytest.mark.sentry_client(GLOBAL_CLIENT)
 
 
-def test_basic(sentry_test_scope):
+def test_fixture(sentry_test_scope):
     assert sentry_test_scope.client is GLOBAL_CLIENT
 
 

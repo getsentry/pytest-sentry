@@ -2,6 +2,7 @@ import pytest
 import wrapt
 
 import sentry_sdk
+from sentry_sdk.opentelemetry.scope import setup_scope_context_management
 
 from .helpers import _resolve_scope_marker_value
 from .integration import PytestIntegration
@@ -12,6 +13,7 @@ def pytest_load_initial_conftests(early_config, parser, args):
     Pytest hook that is called when pytest starts.
     See https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_load_initial_conftests
     """
+    setup_scope_context_management()
     early_config.addinivalue_line(
         "markers",
         "sentry_client(value): Use this value for reporting tests. Can be a Client instance, DSN string, Scope, or dict of options.",
@@ -63,6 +65,7 @@ def pytest_runtest_protocol(item):
     The runtest protocol includes setup phase, call phase and teardown phase.
     See https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_runtest_protocol
     """
+
     op = "pytest.runtest.protocol"
     name = "{} {}".format(op, item.nodeid)
 
@@ -80,6 +83,7 @@ def pytest_runtest_call(item):
     Pytest hook that is called when the call phase of a test is run.
     See https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_runtest_call
     """
+
     op = "pytest.runtest.call"
     is_rerun = hasattr(item, "execution_count") and item.execution_count is not None and item.execution_count > 1
     if is_rerun:

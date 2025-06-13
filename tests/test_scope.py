@@ -1,13 +1,11 @@
 import pytest
-import pytest_sentry
 import unittest
-
 import sentry_sdk
+from .conftest import GLOBAL_CLIENT
 
-
-GLOBAL_CLIENT = pytest_sentry.Client()
 
 pytestmark = pytest.mark.sentry_client(GLOBAL_CLIENT)
+
 
 _DEFAULT_GLOBAL_SCOPE = sentry_sdk.Scope.get_global_scope()
 _DEFAULT_ISOLATION_SCOPE = sentry_sdk.Scope.get_isolation_scope()
@@ -51,3 +49,9 @@ class TestUnittestClass(unittest.TestCase):
 
     def tearDown(self):
         _assert_right_scopes()
+
+
+def test_scope(sentry_test_scope):
+    assert sentry_test_scope.client is GLOBAL_CLIENT
+    global_scope = sentry_sdk.Scope.get_global_scope()
+    assert global_scope is _DEFAULT_GLOBAL_SCOPE
