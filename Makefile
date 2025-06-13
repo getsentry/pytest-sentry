@@ -3,7 +3,7 @@ venv:
 	. .venv/bin/activate && python -m pip install -r dev-requirements.txt
 
 test: venv
-	. .venv/bin/activate && pytest tests
+	. .venv/bin/activate && pytest
 
 release: venv
 	rm -rf dist/

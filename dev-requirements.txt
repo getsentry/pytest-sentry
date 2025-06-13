@@ -1,3 +1,4 @@
 -e .
 pytest-rerunfailures
 pytest<4; python_version < '3.0'
+pytest-cov
