@@ -1,4 +1,13 @@
-release:
+venv:
+	python -m venv .venv
+	. .venv/bin/activate && python -m pip install -r dev-requirements.txt
+
+test: venv
+	. .venv/bin/activate && pytest tests
+
+release: venv
 	rm -rf dist/
-	python setup.py sdist bdist_wheel
-	twine upload dist/*
+	. .venv/bin/activate && python -m build
+	. .venv/bin/activate && twine upload dist/*
+
+.PHONY: venv test release
