@@ -1,3 +1,4 @@
+import pytest
 import pytest_sentry
 from sentry_sdk.transport import Transport
 
@@ -21,8 +22,9 @@ class MyTransport(Transport):
 
         return envelope
 
-    def flush(self, timeout, callback=None):
-        pass
+    def flush(self, timeout=None, callback=None):
+        self.events = []
+        self.transactions = []
 
     def kill(self):
         pass

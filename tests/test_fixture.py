@@ -1,4 +1,5 @@
 import pytest
+
 from .conftest import GLOBAL_CLIENT
 
 

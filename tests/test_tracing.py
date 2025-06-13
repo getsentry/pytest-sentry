@@ -16,6 +16,8 @@ def test_basic(foo_fixture):
 
 @pytest.fixture(scope="module", autouse=True)
 def assert_reporting_worked():
+    GLOBAL_CLIENT.transport.flush()
+
     # Run the test
     yield
 

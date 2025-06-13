@@ -1,6 +1,7 @@
 import os
 import pytest
 import pytest_sentry
+
 from .conftest import GLOBAL_CLIENT
 
 

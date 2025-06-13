@@ -1,6 +1,7 @@
 import pytest
 import unittest
 import sentry_sdk
+
 from .conftest import GLOBAL_CLIENT
 
 
