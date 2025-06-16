@@ -6,7 +6,7 @@ from .helpers import _resolve_scope_marker_value
 @pytest.fixture
 def sentry_test_scope(request):
     """
-    Gives back the current scope.
+    Gives back the isolation Scope.
     """
 
     item = request.node

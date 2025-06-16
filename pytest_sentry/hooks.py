@@ -27,31 +27,19 @@ def hookwrapper(itemgetter, **kwargs):
     """
 
     @wrapt.decorator
-    def _with_scope(wrapped, instance, args, kwargs):
+    def _with_isolation_scope(wrapped, instance, args, kwargs):
         item = itemgetter(*args, **kwargs)
-        scope = _resolve_scope_marker_value(item.get_closest_marker("sentry_client"))
+        isolation_scope = _resolve_scope_marker_value(item.get_closest_marker("sentry_client"))
 
-        if scope.client.get_integration(PytestIntegration) is None:
+        if isolation_scope.client.get_integration(PytestIntegration) is None:
             yield
         else:
-            with sentry_sdk.use_scope(scope):
+            with sentry_sdk.use_isolation_scope(isolation_scope):
                 gen = wrapped(*args, **kwargs)
-
-            while True:
-                try:
-                    with sentry_sdk.use_scope(scope):
-                        chunk = next(gen)
-
-                    y = yield chunk
-
-                    with sentry_sdk.use_scope(scope):
-                        gen.send(y)
-
-                except StopIteration:
-                    break
+                yield from gen
 
     def inner(f):
-        return pytest.hookimpl(hookwrapper=True, **kwargs)(_with_scope(f))
+        return pytest.hookimpl(hookwrapper=True, **kwargs)(_with_isolation_scope(f))
 
     return inner
 
@@ -89,7 +77,7 @@ def pytest_runtest_call(item):
 
     # We use the full name including parameters because then we can identify
     # how often a single test has run as part of the same GITHUB_RUN_ID.
-    with sentry_sdk.continue_trace(dict(sentry_sdk.get_current_scope().iter_trace_propagation_headers())):
+    with sentry_sdk.continue_trace(dict(sentry_sdk.get_isolation_scope().iter_trace_propagation_headers())):
         with sentry_sdk.start_span(op=op, name=name) as span:
             span.set_attribute("pytest-sentry.rerun", is_rerun)
             if is_rerun:
@@ -107,7 +95,7 @@ def pytest_fixture_setup(fixturedef, request):
     op = "pytest.fixture.setup"
     name = "{} {}".format(op, fixturedef.argname)
 
-    with sentry_sdk.continue_trace(dict(sentry_sdk.get_current_scope().iter_trace_propagation_headers())):
+    with sentry_sdk.continue_trace(dict(sentry_sdk.get_isolation_scope().iter_trace_propagation_headers())):
         with sentry_sdk.start_span(op=op, name=name) as root_span:
             root_span.set_tag("pytest.fixture.scope", fixturedef.scope)
             yield
@@ -135,8 +123,8 @@ def pytest_runtest_makereport(item, call):
                 call.excinfo
             ]
 
-        scope = _resolve_scope_marker_value(item.get_closest_marker("sentry_client"))
-        integration = scope.client.get_integration(PytestIntegration)
+        isolation_scope = _resolve_scope_marker_value(item.get_closest_marker("sentry_client"))
+        integration = isolation_scope.client.get_integration(PytestIntegration)
 
         if (cur_exc_chain and call.excinfo is None) or (integration is not None and integration.always_report):
             for exc_info in cur_exc_chain:
