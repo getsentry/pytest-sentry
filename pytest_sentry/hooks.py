@@ -36,7 +36,19 @@ def hookwrapper(itemgetter, **kwargs):
         else:
             with sentry_sdk.use_isolation_scope(isolation_scope):
                 gen = wrapped(*args, **kwargs)
-                yield from gen
+
+            while True:
+                try:
+                    with sentry_sdk.use_isolation_scope(isolation_scope):
+                        chunk = next(gen)
+
+                    y = yield chunk
+
+                    with sentry_sdk.use_isolation_scope(isolation_scope):
+                        gen.send(y)
+
+                except StopIteration:
+                    break
 
     def inner(f):
         return pytest.hookimpl(hookwrapper=True, **kwargs)(_with_isolation_scope(f))

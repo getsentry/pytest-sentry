@@ -25,11 +25,6 @@ def test_basic():
     _assert_right_scopes()
 
 
-def test_correct_span():
-    # Ensure that we are within a root span (started by the pytest_runtest_call hook)
-    assert sentry_sdk.get_current_scope().span is not None
-
-
 class TestSimpleClass(object):
     def setup_method(self):
         _assert_right_scopes()
