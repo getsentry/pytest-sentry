@@ -1,42 +1,38 @@
+# Copyright (c) 2018 Markus Unterwaditzer and individual contributors.
+"""The Sentry client used to report tests."""
+
 import os
+from typing import Any, cast
+
 import sentry_sdk
 
-from .integration import PytestIntegration
+from pytest_sentry.integration import PytestIntegration
+
+_TRUTHY = frozenset({"1", "true", "yes"})
 
 
 class Client(sentry_sdk.Client):
+    """A client that reports errors from tests.
+
+    Configured via `PYTEST_SENTRY_*` environment variables. Explicitly passed
+    options take precedence over the environment.
     """
-    A client that is used to report errors from tests.
-    Configured via `PYTEST_SENTRY_*` environment variables.
-    """
 
-    def __init__(self, *args, **kwargs):
-        kwargs.setdefault(
-            "dsn",
-            os.environ.get("PYTEST_SENTRY_DSN", None),
-        )
-        kwargs.setdefault(
-            "traces_sample_rate",
-            float(os.environ.get("PYTEST_SENTRY_TRACES_SAMPLE_RATE", 1.0)),
-        )
-        kwargs.setdefault(
-            "profiles_sample_rate",
-            float(os.environ.get("PYTEST_SENTRY_PROFILES_SAMPLE_RATE", 0.0)),
-        )
-        kwargs.setdefault(
-            "_experiments",
-            {},
-        ).setdefault(
-            "auto_enabling_integrations",
-            True,
-        )
-        kwargs.setdefault(
-            "environment",
-            os.environ.get("SENTRY_ENVIRONMENT", "test"),
-        )
-        kwargs.setdefault("integrations", []).append(PytestIntegration())
-
-        debug = os.environ.get("PYTEST_SENTRY_DEBUG", "").lower() in ("1", "true", "yes")
-        kwargs.setdefault("debug", debug)
-
-        sentry_sdk.Client.__init__(self, *args, **kwargs)
+    def __init__(self, dsn: str | None = None, **options: object) -> None:
+        """Create a client, filling in options from the environment."""
+        integrations = options.pop("integrations", None)
+        merged: dict[str, object] = {
+            "dsn": dsn if dsn is not None else os.environ.get("PYTEST_SENTRY_DSN"),
+            "traces_sample_rate": float(os.environ.get("PYTEST_SENTRY_TRACES_SAMPLE_RATE", "1.0")),
+            "profiles_sample_rate": float(
+                os.environ.get("PYTEST_SENTRY_PROFILES_SAMPLE_RATE", "0.0")
+            ),
+            "environment": os.environ.get("SENTRY_ENVIRONMENT", "test"),
+            "debug": os.environ.get("PYTEST_SENTRY_DEBUG", "").lower() in _TRUTHY,
+        } | options
+        merged["integrations"] = [
+            *(integrations if isinstance(integrations, list) else []),
+            PytestIntegration(),
+        ]
+        # Options come from users and are forwarded as-is; the SDK validates them.
+        sentry_sdk.Client.__init__(self, **cast("dict[str, Any]", merged))

@@ -1,37 +1,46 @@
-import pytest
-import pytest_sentry
+# Copyright (c) 2018 Markus Unterwaditzer and individual contributors.
+"""CI environment variables are attached to events as tags."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, override
+
+import pytest
 import sentry_sdk
 
+import pytest_sentry
 
-events = []
-envelopes = []
+if TYPE_CHECKING:
+    from sentry_sdk.envelope import Envelope
+    from sentry_sdk.types import Event
+
+events: list[Event] = []
+envelopes: list[Envelope] = []
 
 
-@pytest.fixture(autouse=True)
-def clear_events(monkeypatch):
+class _Transport(sentry_sdk.Transport):
+    @override
+    def capture_envelope(self, envelope: Envelope) -> None:
+        envelopes.append(envelope)
+        if (event := envelope.get_event()) is not None:
+            events.append(event)
+
+
+@pytest.fixture
+def _github_run_id(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GITHUB_RUN_ID", "123abc")
     events.clear()
     envelopes.clear()
 
 
-class MyTransport(sentry_sdk.Transport):
-    def capture_event(self, event):
-        events.append(event)
-
-    def capture_envelope(self, envelope):
-        envelopes.append(envelope)
-        if envelope.get_event() is not None:
-            events.append(envelope.get_event())
+pytestmark = [
+    pytest.mark.sentry_client(pytest_sentry.Client(transport=_Transport())),
+    pytest.mark.usefixtures("_github_run_id"),
+]
 
 
-GLOBAL_TRANSPORT = MyTransport()
-GLOBAL_CLIENT = pytest_sentry.Client(transport=GLOBAL_TRANSPORT)
-
-pytestmark = pytest.mark.sentry_client(GLOBAL_CLIENT)
-
-
-def test_basic(sentry_test_scope):
+def test_basic(sentry_test_scope: sentry_sdk.Scope) -> None:
+    """Error events get the env var tags."""
     with sentry_sdk.use_isolation_scope(sentry_test_scope):
         sentry_test_scope.capture_message("hi")
 
@@ -39,13 +48,13 @@ def test_basic(sentry_test_scope):
     assert event["tags"]["pytest_environ.GITHUB_RUN_ID"] == "123abc"
 
 
-def test_transaction(request):
-    @request.addfinalizer
-    def _():
-        for transaction in envelopes:
-            assert (
-                transaction.get_transaction_event()["tags"][
-                    "pytest_environ.GITHUB_RUN_ID"
-                ]
-                == "123abc"
-            )
+def test_transaction(request: pytest.FixtureRequest) -> None:
+    """Transactions get the env var tags."""
+
+    def check() -> None:
+        for envelope in envelopes:
+            transaction = envelope.get_transaction_event()
+            assert transaction is not None
+            assert transaction["tags"]["pytest_environ.GITHUB_RUN_ID"] == "123abc"
+
+    request.addfinalizer(check)

@@ -15,6 +15,7 @@ This is what a test run will look like in Sentry.
 ## Quickstart
 ### Prerequisites
 
+* Python 3.13 or newer.
 * You are using [pytest](https://pytest.org) to run your tests.
 * You are using [pytest-rerunfailures](https://github.com/pytest-dev/pytest-rerunfailures) to rerun flaky tests.
 
@@ -69,6 +70,12 @@ The prerequisite is that you already make use of `pytest` and
 Now every test failure that is "fixed" by retrying the test is reported to
 Sentry, but still does not break CI. Tests that consistently fail will not be
 reported.
+
+With `PYTEST_SENTRY_ALWAYS_REPORT=1`, every failed attempt is reported instead,
+each one exactly once. Error events are tagged with `pytest.attempt` (1-based)
+and `pytest.final_attempt` (`true` once `pytest-rerunfailures` will not retry
+the test again), so you can tell flaky retries apart from tests that failed
+every attempt, e.g. alert on `pytest.result:failed pytest.final_attempt:true`.
 
 # Tracking the performance of your testsuite
 
@@ -157,9 +164,9 @@ the isolation `Scope` being used to send events to Sentry. Use `with use_isolati
 to temporarily switch context. You can use this to set custom tags like so::
 
 ```python
-  def test_foo(sentry_test_scope):
-      with use_isolation_scope(sentry_test_scope):
-          sentry_sdk.set_tag("pull_request", os.environ['EXAMPLE_CI_PULL_REQUEST'])
+def test_foo(sentry_test_scope):
+    with use_isolation_scope(sentry_test_scope):
+        sentry_sdk.set_tag("pull_request", os.environ["EXAMPLE_CI_PULL_REQUEST"])
 ```
 
 Why all the hassle with the context manager? Just imagine if your tested
@@ -174,6 +181,20 @@ variable `PYTEST_SENTRY_ALWAYS_REPORT=1`.
 This can be enabled for builds on the `main` or release branch, to catch
 certain kinds of tests that are flaky across builds, but consistently fail or
 pass within one testrun.
+
+# Development
+
+The project is managed with [uv](https://docs.astral.sh/uv/), linted and
+formatted with [Ruff](https://docs.astral.sh/ruff/) and type-checked with
+[ty](https://docs.astral.sh/ty/):
+
+```bash
+uv sync
+uv run ruff check .
+uv run ruff format --check .
+uv run ty check
+PYTEST_SENTRY_ALWAYS_REPORT=1 uv run pytest tests
+```
 
 # License
 
