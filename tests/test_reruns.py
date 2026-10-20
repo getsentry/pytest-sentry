@@ -4,10 +4,8 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import pytest
+import pytest
 
 INNER_TESTS = """
 import json
@@ -56,14 +54,19 @@ type _Reported = tuple[str, str, str, str]
 
 
 def _run_inner(
-    pytester: pytest.Pytester, monkeypatch: pytest.MonkeyPatch, *, always_report: bool
+    pytester: pytest.Pytester,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    always_report: bool,
+    tests: str = INNER_TESTS,
+    args: tuple[str, ...] = (),
 ) -> list[_Reported]:
-    pytester.makepyfile(test_inner=INNER_TESTS)
+    pytester.makepyfile(test_inner=tests)
     events_file = pytester.path / "events.jsonl"
     monkeypatch.setenv("EVENTS_FILE", str(events_file))
     monkeypatch.setenv("PYTEST_SENTRY_ALWAYS_REPORT", "1" if always_report else "")
 
-    result = pytester.runpytest_subprocess("-p", "no:cacheprovider", "--reruns=2")
+    result = pytester.runpytest_subprocess("-p", "no:cacheprovider", "--reruns=2", *args)
     assert result.ret == 1, result.stdout.str()
 
     if not events_file.exists():
@@ -101,3 +104,45 @@ def test_default_reports_flaky_tests_once_they_pass(
         ("flaky 1", "passed", "3", "true"),
         ("flaky 2", "passed", "3", "true"),
     ]
+
+
+_HEADER, _, _ = INNER_TESTS.partition("attempts = ")
+
+NOT_RETRIED_TESTS = (
+    _HEADER
+    + """
+def test_value_error():
+    raise ValueError("value error")
+"""
+)
+
+CONDITION_FALSE_TESTS = (
+    _HEADER
+    + """
+@pytest.mark.flaky(reruns=2, condition=False)
+def test_not_retried():
+    assert False, "not retried"
+"""
+)
+
+
+@pytest.mark.parametrize(
+    ("tests", "args"),
+    [
+        pytest.param(NOT_RETRIED_TESTS, ("--only-rerun", "AssertionError"), id="only-rerun"),
+        pytest.param(NOT_RETRIED_TESTS, ("--rerun-except", "ValueError"), id="rerun-except"),
+        pytest.param(NOT_RETRIED_TESTS, ("--max-suite-reruns", "0"), id="max-suite-reruns"),
+        pytest.param(CONDITION_FALSE_TESTS, (), id="condition"),
+    ],
+)
+def test_failure_rerunfailures_does_not_retry_is_final(
+    pytester: pytest.Pytester,
+    monkeypatch: pytest.MonkeyPatch,
+    tests: str,
+    args: tuple[str, ...],
+) -> None:
+    """A failure is final when rerunfailures skips the retry, not only when retries run out."""
+    reported = _run_inner(pytester, monkeypatch, always_report=True, tests=tests, args=args)
+    assert len(reported) == 1
+    _, result, attempt, final_attempt = reported[0]
+    assert (result, attempt, final_attempt) == ("failed", "1", "true")

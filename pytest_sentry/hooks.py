@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol, cast
 
 import pytest
@@ -163,18 +164,42 @@ def pytest_fixture_setup(
         yield
 
 
+@dataclass
+class _Attempt:
+    """What one attempt of a test reports, captured once the attempt ends."""
+
+    scope: sentry_sdk.Scope
+    reports: list[pytest.TestReport] = field(default_factory=list)
+    to_report: list[pytest.ExceptionInfo[BaseException]] = field(default_factory=list)
+    tags: dict[str, str] = field(default_factory=dict)
+
+
+# Keyed by node ID. Attempts of a test run one after another, and an entry is
+# removed when its attempt finishes.
+_ATTEMPTS: dict[str, _Attempt] = {}
+
+
 @_hookwrapper(itemgetter=_item_arg, tryfirst=True)
 def pytest_runtest_makereport(
     item: pytest.Item, call: pytest.CallInfo[None]
 ) -> Generator[None, pluggy.Result[pytest.TestReport]]:
-    """Report failed test attempts to Sentry.
+    """Collect what a test attempt reports to Sentry.
 
-    Called for the setup, call and teardown phases.
+    Called for the setup, call and teardown phases. The exceptions are only
+    captured in `pytest_runtest_logfinish`, once pytest-rerunfailures has
+    decided whether the attempt is retried.
     See https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_runtest_makereport
     """
     sentry_sdk.set_tag("pytest.result", "pending")
-    outcome = (yield).get_result().outcome
+    report = (yield).get_result()
+    outcome = report.outcome
     sentry_sdk.set_tag("pytest.result", outcome)
+
+    scope = _resolve_scope_marker_value(item.get_closest_marker("sentry_client"))
+    if call.when == "setup" or item.nodeid not in _ATTEMPTS:
+        _ATTEMPTS[item.nodeid] = _Attempt(scope=scope)
+    attempt = _ATTEMPTS[item.nodeid]
+    attempt.reports.append(report)
 
     if call.when != "call" or outcome == "skipped":
         return
@@ -183,44 +208,37 @@ def pytest_runtest_makereport(
     if call.excinfo is not None:
         exc_chain = item.stash[_EXC_CHAIN] = [*exc_chain, call.excinfo]
 
-    scope = _resolve_scope_marker_value(item.get_closest_marker("sentry_client"))
     integration = scope.client.get_integration(PytestIntegration)
-
-    attempt = _execution_count(item)
-    sentry_sdk.set_tag("pytest.attempt", str(attempt))
-    sentry_sdk.set_tag("pytest.final_attempt", str(_is_final_attempt(item, attempt)).lower())
+    execution_count = str(_execution_count(item))
+    sentry_sdk.set_tag("pytest.attempt", execution_count)
 
     if integration is not None and integration.always_report:
         # Every failed attempt is reported as it happens, so only report this
         # attempt's exception. Earlier attempts were already sent.
-        to_report = [] if call.excinfo is None else [call.excinfo]
+        attempt.to_report = [] if call.excinfo is None else [call.excinfo]
     elif call.excinfo is None:
         # The test passed after failing: it's flaky, report what failed.
-        to_report = exc_chain
+        attempt.to_report = exc_chain
     else:
-        to_report = []
-
-    for excinfo in to_report:
-        sentry_sdk.capture_exception((excinfo.type, excinfo.value, excinfo.tb))
+        attempt.to_report = []
+    attempt.tags = {"pytest.result": outcome, "pytest.attempt": execution_count}
 
 
-def _is_final_attempt(item: pytest.Item, attempt: int) -> bool:
-    """Whether pytest-rerunfailures won't retry this test after this attempt.
+def pytest_runtest_logfinish(nodeid: str) -> None:
+    """Report the exceptions of a finished test attempt to Sentry.
 
-    Without pytest-rerunfailures, or with no reruns configured, every attempt
-    is final.
-
-    Returns:
-        True if this attempt is the last one.
-
+    pytest-rerunfailures marks the reports of an attempt it retries as
+    `rerun` only after all phases ran, taking `--only-rerun`, `--rerun-except`,
+    `condition` and `--max-suite-reruns` into account. An attempt without such
+    a report is the final one.
+    See https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_runtest_logfinish
     """
-    # Registered as "rerunfailures" via its entry point, or under the module
-    # name when loaded explicitly with `-p pytest_rerunfailures`.
-    plugins = item.config.pluginmanager
-    rerunfailures = plugins.get_plugin("rerunfailures") or plugins.get_plugin(
-        "pytest_rerunfailures"
-    )
-    if rerunfailures is None:
-        return True
-    reruns = rerunfailures.get_reruns_count(item)
-    return not reruns or attempt > reruns
+    attempt = _ATTEMPTS.pop(nodeid, None)
+    if attempt is None or not attempt.to_report:
+        return
+
+    final_attempt = not any(report.outcome == "rerun" for report in attempt.reports)
+    tags = attempt.tags | {"pytest.final_attempt": str(final_attempt).lower()}
+    with sentry_sdk.use_isolation_scope(attempt.scope):
+        for excinfo in attempt.to_report:
+            sentry_sdk.capture_exception((excinfo.type, excinfo.value, excinfo.tb), tags=tags)
