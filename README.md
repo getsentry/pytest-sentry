@@ -70,6 +70,12 @@ Now every test failure that is "fixed" by retrying the test is reported to
 Sentry, but still does not break CI. Tests that consistently fail will not be
 reported.
 
+With `PYTEST_SENTRY_ALWAYS_REPORT=1`, every failed attempt is reported instead,
+each one exactly once. Error events are tagged with `pytest.attempt` (1-based)
+and `pytest.final_attempt` (`true` once `pytest-rerunfailures` will not retry
+the test again), so you can tell flaky retries apart from tests that failed
+every attempt, e.g. alert on `pytest.result:failed pytest.final_attempt:true`.
+
 # Tracking the performance of your testsuite
 
 By default `pytest-sentry` will send [Performance](https://sentry.io/for/performance/) data to Sentry:

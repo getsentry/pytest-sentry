@@ -138,6 +138,34 @@ def pytest_runtest_makereport(item, call):
         isolation_scope = _resolve_scope_marker_value(item.get_closest_marker("sentry_client"))
         integration = isolation_scope.client.get_integration(PytestIntegration)
 
-        if (cur_exc_chain and call.excinfo is None) or (integration is not None and integration.always_report):
-            for exc_info in cur_exc_chain:
-                sentry_sdk.capture_exception((exc_info.type, exc_info.value, exc_info.tb))
+        attempt = getattr(item, "execution_count", None) or 1
+        sentry_sdk.set_tag("pytest.attempt", str(attempt))
+        sentry_sdk.set_tag("pytest.final_attempt", "true" if _is_final_attempt(item, attempt) else "false")
+
+        if integration is not None and integration.always_report:
+            # Every failed attempt is reported as it happens, so only report
+            # this attempt's exception. Earlier attempts were already sent.
+            to_report = [call.excinfo] if call.excinfo is not None else []
+        elif call.excinfo is None:
+            # The test passed after failing: it's flaky, report what failed.
+            to_report = cur_exc_chain
+        else:
+            to_report = []
+
+        for exc_info in to_report:
+            sentry_sdk.capture_exception((exc_info.type, exc_info.value, exc_info.tb))
+
+
+def _is_final_attempt(item, attempt):
+    """
+    Whether pytest-rerunfailures will not retry this test after this attempt.
+    Without pytest-rerunfailures (or with no reruns configured) every attempt
+    is final.
+    """
+    try:
+        from pytest_rerunfailures import get_reruns_count
+    except ImportError:
+        return True
+
+    reruns = get_reruns_count(item)
+    return not reruns or attempt > reruns
