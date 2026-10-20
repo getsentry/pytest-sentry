@@ -1,0 +1,85 @@
+[project]
+name = "pytest-sentry"
+version = "0.5.1"
+description = "A pytest plugin to send testrun information to Sentry.io"
+readme = "README.md"
+license = "BSD-2-Clause"
+license-files = ["LICENSE"]
+authors = [{ name = "Markus Unterwaditzer", email = "markus@unterwaditzer.net" }]
+requires-python = ">=3.13"
+classifiers = [
+    "Framework :: Pytest",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    "pytest>=9.1.1",
+    "sentry-sdk>=3.0.0a7",
+    "wrapt>=2.5.1",
+]
+
+[project.urls]
+Repository = "https://github.com/getsentry/pytest-sentry"
+
+[project.entry-points.pytest11]
+sentry = "pytest_sentry"
+
+[dependency-groups]
+dev = [
+    "pytest-rerunfailures>=16.7",
+    "ruff>=0.17.1",
+    "ty>=0.0.90",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.4,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv]
+# sentry-sdk 3.0.0a7 crashes on import with opentelemetry >= 1.44, whose
+# Context became immutable (sentry_sdk/opentelemetry/contextvars_context.py
+# calls Context.pop). Dev/CI-only constraint; not part of the package metadata.
+constraint-dependencies = ["opentelemetry-api<1.44", "opentelemetry-sdk<1.44"]
+
+[tool.uv.build-backend]
+module-root = ""
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["ALL"]
+preview = true
+explicit-preview-rules = false
+ignore = [
+    # Conflict with the formatter: https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
+    "missing-trailing-comma",
+    "single-line-implicit-string-concatenation",
+    # Mutually exclusive with D211 / D212, which are enforced instead.
+    "incorrect-blank-line-before-class",
+    "multi-line-summary-second-line",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "assert",    # pytest uses bare asserts
+    "magic-value-comparison", # magic values in assertions
+]
+
+[tool.ruff.format]
+preview = true
+
+[tool.ty.environment]
+python-version = "3.13"
+
+[tool.ty.rules]
+all = "error"
+
+[tool.ty.terminal]
+error-on-warning = true
+
+[tool.pytest.ini_options]
+addopts = ["-p", "no:cacheprovider", "-p", "pytester"]
