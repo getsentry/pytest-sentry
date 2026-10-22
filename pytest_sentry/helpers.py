@@ -6,7 +6,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import sentry_sdk
-from sentry_sdk.opentelemetry.scope import setup_scope_context_management
 from sentry_sdk.scope import ScopeType
 
 from pytest_sentry.client import Client
@@ -14,7 +13,6 @@ from pytest_sentry.client import Client
 if TYPE_CHECKING:
     import pytest
 
-setup_scope_context_management()
 DEFAULT_ISOLATION_SCOPE = sentry_sdk.Scope(ty=ScopeType.ISOLATION)
 DEFAULT_ISOLATION_SCOPE.set_client(Client())
 
