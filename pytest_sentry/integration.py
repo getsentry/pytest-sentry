@@ -31,14 +31,25 @@ def _mark_in_app_frames(stacktrace: Mapping[str, object]) -> None:
             frame["in_app"] = not (isinstance(module, str) and module.startswith(_NOT_IN_APP))
 
 
+def environ_tags() -> dict[str, str]:
+    """Return the CI environment variables that are set, as tags.
+
+    Returns:
+        The tags, keyed by `pytest_environ.<name>`.
+
+    """
+    return {
+        f"pytest_environ.{key}": value
+        for key in ENVVARS_AS_TAGS
+        if (value := os.environ.get(key, ""))
+    }
+
+
 def _process_event(event: Event, _hint: Hint) -> Event:
     if sentry_sdk.get_client().get_integration(PytestIntegration) is None:
         return event
 
-    tags = event.setdefault("tags", {})
-    for key in ENVVARS_AS_TAGS:
-        if value := os.environ.get(key, ""):
-            tags[f"pytest_environ.{key}"] = value
+    event.setdefault("tags", {}).update(environ_tags())
 
     for exception in event.get("exception", {}).get("values", []):
         if (stacktrace := exception.get("stacktrace")) is not None:

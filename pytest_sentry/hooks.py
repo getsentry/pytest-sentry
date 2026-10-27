@@ -8,10 +8,13 @@ from typing import TYPE_CHECKING, Protocol, cast
 
 import pytest
 import sentry_sdk
+import sentry_sdk.traces
 import wrapt
+from sentry_sdk.scope import use_isolation_scope
 
+from pytest_sentry.client import PROTOCOL_OP
 from pytest_sentry.helpers import _resolve_scope_marker_value
-from pytest_sentry.integration import PytestIntegration
+from pytest_sentry.integration import PytestIntegration, environ_tags
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
@@ -89,15 +92,15 @@ def _hookwrapper(itemgetter: _ItemGetter, *, tryfirst: bool = False) -> _HookDec
             yield
             return
 
-        with sentry_sdk.use_isolation_scope(scope):
+        with use_isolation_scope(scope):
             gen = wrapped(*args, **kwargs)
 
         while True:
             try:
-                with sentry_sdk.use_isolation_scope(scope):
+                with use_isolation_scope(scope):
                     next(gen)
                 sent = yield
-                with sentry_sdk.use_isolation_scope(scope):
+                with use_isolation_scope(scope):
                     gen.send(sent)
             except StopIteration:
                 break
@@ -113,15 +116,17 @@ def _hookwrapper(itemgetter: _ItemGetter, *, tryfirst: bool = False) -> _HookDec
 
 @_hookwrapper(itemgetter=_item_arg)
 def pytest_runtest_protocol(item: pytest.Item) -> Generator[None]:
-    """Run one test (setup, call and teardown) in a span.
+    """Run one test (setup, call and teardown) in its own trace, in a span.
 
     See https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_runtest_protocol
     """
-    op = "pytest.runtest.protocol"
-    # The full name, including parameters, identifies how often a single test
-    # ran as part of the same GITHUB_RUN_ID. The span is purposefully not sent
-    # to spare quota; it only exists to give the test a trace ID.
-    with sentry_sdk.start_span(op=op, name=f"{op} {item.nodeid}", sampled=False):
+    sentry_sdk.traces.new_trace()
+    # The span is ignored by the client's `ignore_spans` to spare quota.
+    with sentry_sdk.traces.start_span(
+        name=f"{PROTOCOL_OP} {item.nodeid}",
+        attributes={"sentry.op": PROTOCOL_OP},
+        parent_span=None,
+    ):
         yield
 
 
@@ -138,11 +143,20 @@ def pytest_runtest_call(item: pytest.Item) -> Generator[None]:
     name = f"{op}{rerun} {item.nodeid}"
 
     headers = dict(sentry_sdk.get_isolation_scope().iter_trace_propagation_headers())
-    with sentry_sdk.continue_trace(headers), sentry_sdk.start_span(op=op, name=name) as span:
+    sentry_sdk.traces.continue_trace(headers)
+    # `parent_span=None` keeps spans of the tested code out of the test's trace.
+    with sentry_sdk.traces.start_span(
+        name=name, attributes={"sentry.op": op}, parent_span=None
+    ) as span:
         span.set_attribute("pytest-sentry.rerun", is_rerun)
         if is_rerun:
             span.set_attribute("pytest-sentry.execution_count", execution_count)
-        yield
+        try:
+            yield
+        finally:
+            # Read once the span ends, as the test may set them.
+            # A dict literal, as `Attributes` is an invariant `dict[str, AttributeValue]`.
+            span.set_attributes({**environ_tags()})
 
 
 @_hookwrapper(itemgetter=_fixture_request_item)
@@ -156,12 +170,18 @@ def pytest_fixture_setup(
     del request  # Only used to find the test item.
     op = "pytest.fixture.setup"
     headers = dict(sentry_sdk.get_isolation_scope().iter_trace_propagation_headers())
-    with (
-        sentry_sdk.continue_trace(headers),
-        sentry_sdk.start_span(op=op, name=f"{op} {fixturedef.argname}") as span,
-    ):
-        span.set_tag("pytest.fixture.scope", fixturedef.scope)
-        yield
+    sentry_sdk.traces.continue_trace(headers)
+    # `parent_span=None` keeps spans of the tested code out of the test's trace.
+    with sentry_sdk.traces.start_span(
+        name=f"{op} {fixturedef.argname}", attributes={"sentry.op": op}, parent_span=None
+    ) as span:
+        span.set_attribute("pytest.fixture.scope", fixturedef.scope)
+        try:
+            yield
+        finally:
+            # Read once the span ends, as the fixture may set them.
+            # A dict literal, as `Attributes` is an invariant `dict[str, AttributeValue]`.
+            span.set_attributes({**environ_tags()})
 
 
 @dataclass
@@ -239,6 +259,6 @@ def pytest_runtest_logfinish(nodeid: str) -> None:
 
     final_attempt = not any(report.outcome == "rerun" for report in attempt.reports)
     tags = attempt.tags | {"pytest.final_attempt": str(final_attempt).lower()}
-    with sentry_sdk.use_isolation_scope(attempt.scope):
+    with use_isolation_scope(attempt.scope):
         for excinfo in attempt.to_report:
             sentry_sdk.capture_exception((excinfo.type, excinfo.value, excinfo.tb), tags=tags)

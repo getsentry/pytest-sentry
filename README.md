@@ -29,7 +29,7 @@ You can configure `pytest-sentry` with environment variables:
 
 * `PYTEST_SENTRY_TRACES_SAMPLE_RATE`: The sample rate for tracing data. See https://docs.sentry.io/platforms/python/configuration/options/#traces_sample_rate
 
-* `PYTEST_SENTRY_PROFILES_SAMPLE_RATE`: The sample rate for profiling data.
+* `PYTEST_SENTRY_PROFILES_SAMPLE_RATE`: The sample rate for profiling sessions. Sampled sessions profile every sampled test. See https://docs.sentry.io/platforms/python/configuration/options/#profile_session_sample_rate
 
 * `PYTEST_SENTRY_DEBUG`: Set to `1` to display Sentry debug output. See https://docs.sentry.io/platforms/python/configuration/options/#debug
 
@@ -81,23 +81,23 @@ every attempt, e.g. alert on `pytest.result:failed pytest.final_attempt:true`.
 
 By default `pytest-sentry` will send [Performance](https://sentry.io/for/performance/) data to Sentry:
 
-* Fixture setup is reported as "transaction" to Sentry, such that you can
+* Fixture setup is reported as a segment span to Sentry, such that you can
   answer questions like "what is my slowest test fixture" and "what is my most
   used test fixture".
 
-* Calls to the test function itself are reported as separate transaction such
-  that you can find large, slow tests as well.
+* Calls to the test function itself are reported as a separate segment span
+  such that you can find large, slow tests as well.
 
 * Fixture setup related to a particular test item will be in the same trace,
-  i.e. will have same trace ID. There is no common parent transaction though.
-  It is purposefully dropped to spare quota as it does not contain interesting
-  information::
+  i.e. will have same trace ID. There is no common parent span though. It is
+  purposefully dropped (via the client's `ignore_spans`) to spare quota as it
+  does not contain interesting information::
 
       pytest.runtest.protocol  [one time, not sent]
         pytest.fixture.setup [multiple times, sent]
         pytest.runtest.call [one time, sent]
 
-  The trace is per-test-item. For correlating transactions across an entire
+  The trace is per-test-item. For correlating spans across an entire
   test run, use the automatically attached CI tags or attach some tag on your
   own.
 
@@ -105,10 +105,10 @@ To measure performance data, install `pytest-sentry` and set
 `PYTEST_SENTRY_DSN`, like with errors. By default, the extension will send all
 performance data to Sentry. If you want to limit the amount of data sent, you
 can set the `PYTEST_SENTRY_TRACES_SAMPLE_RATE` environment variable to a float
-between `0` and `1`. This will cause only a random sample of transactions to
+between `0` and `1`. This will cause only a random sample of traces to
 be sent to Sentry.
 
-Transactions can have noticeable runtime overhead over just reporting errors.
+Spans can have noticeable runtime overhead over just reporting errors.
 To disable, use a marker::
 
     import pytest
@@ -160,10 +160,13 @@ extreme lenghts to keep its own SDK setup separate from the SDK setup of the
 tested code.
 
 `pytest-sentry` exposes the `sentry_test_scope` fixture whose return value is
-the isolation `Scope` being used to send events to Sentry. Use `with use_isolation_scope(sentry_test_scope)`: 
+the isolation `Scope` being used to send events to Sentry. Use `with use_isolation_scope(sentry_test_scope):`
 to temporarily switch context. You can use this to set custom tags like so::
 
 ```python
+from sentry_sdk.scope import use_isolation_scope
+
+
 def test_foo(sentry_test_scope):
     with use_isolation_scope(sentry_test_scope):
         sentry_sdk.set_tag("pull_request", os.environ["EXAMPLE_CI_PULL_REQUEST"])

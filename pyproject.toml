@@ -16,7 +16,7 @@ classifiers = [
 ]
 dependencies = [
     "pytest>=9.1.1",
-    "sentry-sdk>=3.0.0a7",
+    "sentry-sdk>=2.66.0",
     "wrapt>=2.5.1",
 ]
 
@@ -36,12 +36,6 @@ dev = [
 [build-system]
 requires = ["uv_build>=0.13.4,<0.14"]
 build-backend = "uv_build"
-
-[tool.uv]
-# sentry-sdk 3.0.0a7 crashes on import with opentelemetry >= 1.44, whose
-# Context became immutable (sentry_sdk/opentelemetry/contextvars_context.py
-# calls Context.pop). Dev/CI-only constraint; not part of the package metadata.
-constraint-dependencies = ["opentelemetry-api<1.44", "opentelemetry-sdk<1.44"]
 
 [tool.uv.build-backend]
 module-root = ""
