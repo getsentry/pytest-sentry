@@ -28,6 +28,8 @@ class Client(sentry_sdk.Client):
         merged: dict[str, object] = {
             "dsn": dsn if dsn is not None else os.environ.get("PYTEST_SENTRY_DSN"),
             "traces_sample_rate": float(os.environ.get("PYTEST_SENTRY_TRACES_SAMPLE_RATE", "1.0")),
+            # The hooks start streamed spans, which need the streaming lifecycle.
+            "trace_lifecycle": "stream",
             # Profile each sampled trace, i.e. each test, for sampled sessions.
             "profile_lifecycle": "trace",
             "profile_session_sample_rate": float(

@@ -16,7 +16,7 @@ classifiers = [
 ]
 dependencies = [
     "pytest>=9.1.1",
-    "sentry-sdk>=3.0.0b1",
+    "sentry-sdk>=2.66.0",
     "wrapt>=2.5.1",
 ]
 

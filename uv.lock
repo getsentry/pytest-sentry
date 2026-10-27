@@ -105,7 +105,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "pytest", specifier = ">=9.1.1" },
-    { name = "sentry-sdk", specifier = ">=3.0.0b1" },
+    { name = "sentry-sdk", specifier = ">=2.66.0" },
     { name = "wrapt", specifier = ">=2.5.1" },
 ]
 
@@ -143,15 +143,15 @@ wheels = [
 
 [[package]]
 name = "sentry-sdk"
-version = "3.0.0b1"
+version = "3.0.0b2"
 source = { registry = "https://sfw.security.sentry.io/pypi/simple" }
 dependencies = [
     { name = "certifi" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://sfw.security.sentry.io/pypi/packages/d3/26/379ff3772aa90efd5ea0f3787b93add5f41cb4e238b273284e395474c0ef/sentry_sdk-3.0.0b1.tar.gz", hash = "sha256:6231ffe171eb930595d8894cfe7bab764c325dd47fe3e6c6b5b0499c2789507c", size = 848996, upload-time = "2026-10-21T13:11:40.432Z" }
+sdist = { url = "https://sfw.security.sentry.io/pypi/packages/37/38/4951b59821c4ff86ae4cd5ef2ed76e19fa6b17fe43c62a715908aaea2d47/sentry_sdk-3.0.0b2.tar.gz", hash = "sha256:a092a88ba64a1c2081894d5d55eb9cbd65b514d2973821273a4e9a58f18d4ff1", size = 859815, upload-time = "2026-10-27T09:16:13.653Z" }
 wheels = [
-    { url = "https://sfw.security.sentry.io/pypi/packages/ea/8a/5ab901d9f6860e96c1bc3729711400ac56db88e5801b4020fddb6c68c98d/sentry_sdk-3.0.0b1-py3-none-any.whl", hash = "sha256:2334262deed11fc798b470b2f849a8c4f8fe0dd64f2237605d4e817e38ccd018", size = 451009, upload-time = "2026-10-21T13:11:39.117Z" },
+    { url = "https://sfw.security.sentry.io/pypi/packages/39/74/ef666fa487b95c34c50e1d85bba1eb7244a6aecb0e47c121940bbeffcc3e/sentry_sdk-3.0.0b2-py3-none-any.whl", hash = "sha256:95ad506f22b22603ece417d5fd355476ca1c0c9844d42ea30a663f5fa0a8446f", size = 456098, upload-time = "2026-10-27T09:16:11.798Z" },
 ]
 
 [[package]]

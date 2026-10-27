@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Protocol, cast
 
 import pytest
 import sentry_sdk
+import sentry_sdk.traces
 import wrapt
 from sentry_sdk.scope import use_isolation_scope
 
@@ -119,9 +120,9 @@ def pytest_runtest_protocol(item: pytest.Item) -> Generator[None]:
 
     See https://docs.pytest.org/en/stable/reference/reference.html#pytest.hookspec.pytest_runtest_protocol
     """
-    sentry_sdk.new_trace()
+    sentry_sdk.traces.new_trace()
     # The span is ignored by the client's `ignore_spans` to spare quota.
-    with sentry_sdk.start_span(
+    with sentry_sdk.traces.start_span(
         name=f"{PROTOCOL_OP} {item.nodeid}",
         attributes={"sentry.op": PROTOCOL_OP},
         parent_span=None,
@@ -142,9 +143,11 @@ def pytest_runtest_call(item: pytest.Item) -> Generator[None]:
     name = f"{op}{rerun} {item.nodeid}"
 
     headers = dict(sentry_sdk.get_isolation_scope().iter_trace_propagation_headers())
-    sentry_sdk.continue_trace(headers)
+    sentry_sdk.traces.continue_trace(headers)
     # `parent_span=None` keeps spans of the tested code out of the test's trace.
-    with sentry_sdk.start_span(name=name, attributes={"sentry.op": op}, parent_span=None) as span:
+    with sentry_sdk.traces.start_span(
+        name=name, attributes={"sentry.op": op}, parent_span=None
+    ) as span:
         span.set_attribute("pytest-sentry.rerun", is_rerun)
         if is_rerun:
             span.set_attribute("pytest-sentry.execution_count", execution_count)
@@ -167,9 +170,9 @@ def pytest_fixture_setup(
     del request  # Only used to find the test item.
     op = "pytest.fixture.setup"
     headers = dict(sentry_sdk.get_isolation_scope().iter_trace_propagation_headers())
-    sentry_sdk.continue_trace(headers)
+    sentry_sdk.traces.continue_trace(headers)
     # `parent_span=None` keeps spans of the tested code out of the test's trace.
-    with sentry_sdk.start_span(
+    with sentry_sdk.traces.start_span(
         name=f"{op} {fixturedef.argname}", attributes={"sentry.op": op}, parent_span=None
     ) as span:
         span.set_attribute("pytest.fixture.scope", fixturedef.scope)
